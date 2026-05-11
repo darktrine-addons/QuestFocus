@@ -1,0 +1,6 @@
+package-as: QuestFocus
+
+enable-nolib-creation: no
+
+ignore:
+    - design
