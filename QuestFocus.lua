@@ -11,6 +11,7 @@ boot:SetScript("OnEvent", function(self, event, who)
         ns.Core.State.EnsureDB()
     elseif event == "PLAYER_ENTERING_WORLD" then
         ns.UI.MountTrackerButtons()
+        ns.UI.MountQuestLogButtons()
     end
 end)
 
