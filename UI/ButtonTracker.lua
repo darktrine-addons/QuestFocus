@@ -45,12 +45,11 @@ local function UpdateState()
     local active = State.GetFilterActive()
     local count  = State.GetRevertAddCount()
 
-    local fs = filterBtn:GetFontString()
-    if fs then
+    if filterBtn.icon then
         if active then
-            fs:SetTextColor(0.4, 1.0, 0.4)
+            filterBtn.icon:SetVertexColor(0.4, 1.0, 0.4)
         else
-            fs:SetTextColor(1, 1, 1)
+            filterBtn.icon:SetVertexColor(1, 1, 1)
         end
     end
 
@@ -69,14 +68,16 @@ ns.UI.OnStateChanged = UpdateState
 -- tooltip, combat lockdown, click-through during combat.
 -- ============================================================
 
-local function MakeButton(parent, symbol, onClick, tooltipFn)
+local function MakeButton(parent, atlas, onClick, tooltipFn)
     local b = CreateFrame("Button", nil, parent)
-    b:SetSize(20, 20)
+    b:SetSize(18, 18)
 
-    local fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    fs:SetPoint("CENTER", b, "CENTER", 0, 0)
-    fs:SetText(symbol)
-    b:SetFontString(fs)
+    -- Icon texture region — atlas-driven so we don't ship art assets.
+    -- common-icon-* atlases have been stable since Dragonflight (10.0).
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetAtlas(atlas)
+    b.icon = icon
 
     -- Hover highlight (subtle white overlay)
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
@@ -102,7 +103,7 @@ local function MakeButton(parent, symbol, onClick, tooltipFn)
         if event == "PLAYER_REGEN_DISABLED" then
             self:Disable()
             self:EnableMouse(false)              -- click-through; clicks reach whatever is behind
-            if fs then fs:SetTextColor(0.5, 0.5, 0.5) end
+            icon:SetVertexColor(0.5, 0.5, 0.5)   -- visually dimmed
         elseif event == "PLAYER_REGEN_ENABLED" then
             self:Enable()
             self:EnableMouse(true)
@@ -123,7 +124,7 @@ local function Mount()
     local parent, anchor = FindAnchor()
     if not parent or not anchor then return false end
 
-    filterBtn = MakeButton(parent, "▼",
+    filterBtn = MakeButton(parent, "common-icon-zoomin",
         function() ns.Core.Apply.Filter() end,
         function(self)
             GameTooltip:SetText("Focus on this zone", 1, 0.82, 0)
@@ -139,7 +140,7 @@ local function Mount()
         end)
     filterBtn:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
 
-    revertBtn = MakeButton(parent, "↺",
+    revertBtn = MakeButton(parent, "common-icon-undo",
         function() ns.Core.Revert.Revert() end,
         function(self)
             GameTooltip:SetText("Restore tracking", 1, 0.82, 0)

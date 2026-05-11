@@ -4,10 +4,10 @@ Narrow the set of tracked quests to ones relevant to your current zone, with one
 
 ## What it does
 
-- **▼ Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked. Idempotent and safe to re-apply when you change zones.
-- **↺ Revert button** — Restores the watch list to exactly what it was before the first Focus action. Snapshot is per-character and survives `/reload`.
-- **Filter-active feedback** — The ▼ symbol turns green while a filter is in effect.
-- **Restorable-count badge** — A small yellow number on the ↺ button shows how many quests would be re-tracked on revert. Hidden when zero.
+- **🔍 Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked. Idempotent and safe to re-apply when you change zones.
+- **↶ Revert button** — Restores the watch list to exactly what it was before the first Focus action. Snapshot is per-character and survives `/reload`.
+- **Filter-active feedback** — The 🔍 symbol turns green while a filter is in effect.
+- **Restorable-count badge** — A small yellow number on the ↶ button shows how many quests would be re-tracked on revert. Hidden when zero.
 
 ## What it doesn't do
 
@@ -34,7 +34,7 @@ A quest counts as relevant to your current zone if its quest log entry's `isOnMa
 
 ## Strict revert
 
-If you manually add or remove watches *while a filter is active*, those interim changes are discarded on revert — the snapshot is restored exactly. Tooltip on the ↺ button warns about this.
+If you manually add or remove watches *while a filter is active*, those interim changes are discarded on revert — the snapshot is restored exactly. Tooltip on the ↶ button warns about this.
 
 ## License
 
