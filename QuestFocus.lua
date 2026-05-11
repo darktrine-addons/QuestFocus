@@ -1,20 +1,33 @@
--- QuestFocus
--- Narrow tracked quests to the current zone, with one-click revert.
--- Scaffold only — no features wired yet.
+-- QuestFocus — bootstrap.
+-- Loads last per TOC; ties State/Apply/Revert/UI together and provides slash commands.
 
 local addonName, ns = ...
 
-local QuestFocus = CreateFrame("Frame")
-QuestFocus:RegisterEvent("ADDON_LOADED")
-QuestFocus:SetScript("OnEvent", function(self, event, who)
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("ADDON_LOADED")
+boot:RegisterEvent("PLAYER_ENTERING_WORLD")
+boot:SetScript("OnEvent", function(self, event, who)
     if event == "ADDON_LOADED" and who == addonName then
-        QuestFocusDB     = QuestFocusDB     or {}
-        QuestFocusCharDB = QuestFocusCharDB or {}
+        ns.Core.State.EnsureDB()
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        ns.UI.MountTrackerButtons()
     end
 end)
 
 SLASH_QUESTFOCUS1 = "/qf"
 SLASH_QUESTFOCUS2 = "/questfocus"
 SlashCmdList.QUESTFOCUS = function(msg)
-    print("|cffffcc00QuestFocus|r scaffold loaded. No commands implemented yet.")
+    msg = (msg or ""):lower():match("^%s*(.-)%s*$")
+    if msg == "filter" or msg == "" then
+        ns.Core.Apply.Filter()
+    elseif msg == "revert" then
+        ns.Core.Revert.Revert()
+    elseif msg == "status" then
+        local active = ns.Core.State.GetFilterActive()
+        local restorable = ns.Core.State.GetRevertAddCount()
+        print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
+            tostring(active), restorable))
+    else
+        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | revert | status")
+    end
 end

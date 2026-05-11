@@ -1,28 +1,40 @@
 # QuestFocus
 
-Narrow the set of tracked quests to the ones relevant to your current zone, with one-click revert. Designed to be quiet, predictable, and taint-free.
+Narrow the set of tracked quests to ones relevant to your current zone, with one-click revert. Two small buttons attach to the objective tracker; no settings panel; no auto mode (yet).
 
-> **Status:** Scaffold only. No features wired yet. The release packaging pipeline is in place; the actual filter / revert logic, UI buttons, and optional auto-on-zone-change mode are not yet implemented.
+## What it does
 
-## Planned behavior
+- **▼ Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked. Idempotent and safe to re-apply when you change zones.
+- **↺ Revert button** — Restores the watch list to exactly what it was before the first Focus action. Snapshot is per-character and survives `/reload`.
+- **Filter-active feedback** — The ▼ symbol turns green while a filter is in effect.
+- **Restorable-count badge** — A small yellow number on the ↺ button shows how many quests would be re-tracked on revert. Hidden when zero.
 
-- **Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked.
-- **Revert button** — Restores the watch list to whatever it was before the first Focus action. Snapshot is per-character and survives `/reload`.
-- **Optional auto-focus** — A setting that re-runs the filter automatically when you change zones (debounced; skipped inside instances if "Open World Only" mode is chosen).
-- **Buttons in two places** — adjacent to the objective tracker's minimize button, and inside the quest log panel on the world map.
+## What it doesn't do
 
-## What it does *not* do
+- No settings panel, no auto-on-zone-change (yet).
+- No buttons inside the quest log panel — only on the tracker.
+- Does not collapse tracker sections.
+- Does not write any custom keys onto Blizzard frames.
+- Does not call any API during combat. Buttons disable visually and become click-through, so clicks pass through to whatever is behind.
 
-- Does not collapse tracker sections (that's the problem space of QuestLogCollapse and is constrained by Blizzard's UIWidget pool taint mechanics — see issue #25 / PR #29 / PR #30 in the QLC repo).
-- Does not modify quest progress or state. The only thing it touches is the watch list (`C_QuestLog.AddQuestWatch` / `RemoveQuestWatch`).
-- Does not hook Blizzard frames or write custom keys onto them.
+## Layout
+
+The two buttons are parented to `ObjectiveTrackerFrame.Header` (modern retail; falls back to `HeaderMenu` / `ObjectiveTrackerFrame` itself on older builds). They inherit visibility from the tracker — when nothing is tracked and the tracker hides itself, the buttons hide too. When Edit Mode moves or scales the tracker, the buttons follow.
 
 ## Slash commands
 
-- `/qf` — short alias
-- `/questfocus` — full
+- `/qf` (or `/qf filter`) — apply Focus to current zone
+- `/qf revert` — restore original watch list
+- `/qf status` — print whether filter is active and how many quests are restorable
+- `/questfocus` — long alias for any of the above
 
-Both currently print a "scaffold loaded" message and nothing else.
+## How "relevant" is decided
+
+A quest counts as relevant to your current zone if its quest log entry's `isOnMap` or `hasLocalPOI` is true. These are the two fields the quest log API exposes that reflect zone relevance.
+
+## Strict revert
+
+If you manually add or remove watches *while a filter is active*, those interim changes are discarded on revert — the snapshot is restored exactly. Tooltip on the ↺ button warns about this.
 
 ## License
 
