@@ -1,4 +1,12 @@
--- Revert.lua — strict revert: restore the snapshot exactly, dropping any interim changes.
+-- Revert.lua — merge revert.
+--
+-- target = snapshot ∪ drift_adds
+--        = (pre-filter watch list) ∪ (quests added since last filter)
+--
+-- This preserves anything the user (or autoQuestWatch) added after the
+-- filter was applied, while still restoring the original watch list.
+-- Quests we added during the filter that the user didn't subsequently
+-- accept-or-untrack get cleaned up.
 
 local addonName, ns = ...
 ns.Core = ns.Core or {}
@@ -23,18 +31,27 @@ function Revert.Revert()
     end
 
     local current = State.GetCurrentWatches()
+    local last    = State.GetLastApplied()
+
+    -- target = snapshot ∪ drift_adds  (drift_adds = current ∖ lastApplied)
+    local target = {}
+    for qid in pairs(snap) do target[qid] = true end
+    if last then
+        for qid in pairs(current) do
+            if not last[qid] then target[qid] = true end
+        end
+    end
+
     local added, removed = 0, 0
 
-    -- Untrack quests currently watched but not in snapshot (user's interim adds + our zone additions)
     for qid in pairs(current) do
-        if not snap[qid] then
+        if not target[qid] then
             C_QuestLog.RemoveQuestWatch(qid)
             removed = removed + 1
         end
     end
 
-    -- Re-track quests in snapshot but not currently watched
-    for qid in pairs(snap) do
+    for qid in pairs(target) do
         if not current[qid] then
             C_QuestLog.AddQuestWatch(qid)
             added = added + 1
@@ -42,6 +59,7 @@ function Revert.Revert()
     end
 
     State.ClearSnapshot()
+    State.ClearLastApplied()
     State.SetFilterActive(false)
 
     notify(string.format("revert: restored %d, removed %d", added, removed))

@@ -5,9 +5,22 @@ Narrow the set of tracked quests to ones relevant to your current zone, with one
 ## What it does
 
 - **🔍 Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked. Idempotent and safe to re-apply when you change zones.
-- **↶ Revert button** — Restores the watch list to exactly what it was before the first Focus action. Snapshot is per-character and survives `/reload`.
-- **Filter-active feedback** — The 🔍 symbol turns green while a filter is in effect.
+- **↶ Revert button** — Restores the watch list to the snapshot taken when you first pressed Focus, **plus any quests you've added since** (manually or via Blizzard's auto-track). Snapshot is per-character and survives `/reload`.
+- **Tri-state filter indicator** — The 🔍 icon shows:
+  - White: no filter applied
+  - Green: filter applied, watch list still matches what the filter left it as
+  - **Yellow**: filter applied, but quests have been added to the watch list since (e.g. you accepted a new quest with autoQuestWatch on)
 - **Restorable-count badge** — A small yellow number on the ↶ button shows how many quests would be re-tracked on revert. Hidden when zero.
+
+## Re-applying the filter
+
+When you press 🔍 while in the yellow state, the interim quests are folded into the snapshot before re-narrowing. That way they're preserved if you later revert. The indicator returns to green after re-apply.
+
+## Revert semantics (merge)
+
+`revert_target = snapshot ∪ quests_added_since`
+
+This preserves any quest you've accepted/tracked since the filter was applied. Quests the filter itself added (zone-relevant additions) get cleaned up. The only case where revert overrides a user choice is if you manually *un-tracked* a quest that was in the original snapshot — revert re-tracks it, on the principle that "revert" means "go back to that snapshot." A configurable opt-in for "user untracks also remove from snapshot" is on the polish backlog.
 
 ## What it doesn't do
 

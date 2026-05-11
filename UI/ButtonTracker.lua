@@ -43,13 +43,17 @@ local function UpdateState()
     if not filterBtn then return end
     local State = ns.Core.State
     local active = State.GetFilterActive()
+    local dirty  = State.IsDirty()
     local count  = State.GetRevertAddCount()
 
-    if filterBtn.icon then
-        if active then
-            filterBtn.icon:SetVertexColor(0.4, 1.0, 0.4)
+    -- Don't override the gray-during-combat color set by the OnEvent handler.
+    if not InCombatLockdown() and filterBtn.icon then
+        if active and dirty then
+            filterBtn.icon:SetVertexColor(1.0, 0.85, 0.2)   -- yellow / amber: filter applied, drift detected
+        elseif active then
+            filterBtn.icon:SetVertexColor(0.4, 1.0, 0.4)    -- green: filter applied and clean
         else
-            filterBtn.icon:SetVertexColor(1, 1, 1)
+            filterBtn.icon:SetVertexColor(1, 1, 1)          -- white: no filter
         end
     end
 
@@ -127,15 +131,23 @@ local function Mount()
     filterBtn = MakeButton(parent, "common-icon-zoomin",
         function() ns.Core.Apply.Filter() end,
         function(self)
+            local State  = ns.Core.State
+            local active = State.GetFilterActive()
+            local dirty  = State.IsDirty()
+
             GameTooltip:SetText("Focus on this zone", 1, 0.82, 0)
-            GameTooltip:AddLine("Narrow your tracked quests to those with an objective in your current zone.", 1, 1, 1, true)
-            local active = ns.Core.State.GetFilterActive()
-            if active then
+            if not active then
+                GameTooltip:AddLine("Click to narrow your watch list to quests with objectives in this zone.", 1, 1, 1, true)
+            elseif dirty then
+                local driftAdds = State.GetDriftAddCount()
+                GameTooltip:AddLine(string.format("|cffffd62aFilter is applied, %d quest%s added since.|r",
+                    driftAdds, driftAdds == 1 and "" or "s"), 1, 1, 1, true)
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("|cff44ff44Filter is active.|r Click to re-apply for current zone.", 1, 1, 1, true)
+                GameTooltip:AddLine("Click to re-narrow for current zone. Your interim quests will be remembered for revert.", 1, 1, 1, true)
             else
+                GameTooltip:AddLine("|cff44ff44Filter is applied and clean.|r", 1, 1, 1, true)
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Click to apply.", 1, 1, 1, true)
+                GameTooltip:AddLine("Click to re-narrow (e.g. after a zone change).", 1, 1, 1, true)
             end
         end)
     filterBtn:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
@@ -143,15 +155,24 @@ local function Mount()
     revertBtn = MakeButton(parent, "common-icon-undo",
         function() ns.Core.Revert.Revert() end,
         function(self)
+            local State = ns.Core.State
             GameTooltip:SetText("Restore tracking", 1, 0.82, 0)
-            local count = ns.Core.State.GetRevertAddCount()
-            if count > 0 then
-                GameTooltip:AddLine(string.format("Restores %d quest%s that %s tracked before the filter was applied.",
-                    count, count == 1 and "" or "s", count == 1 and "was" or "were"), 1, 1, 1, true)
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("|cffff8888Any quests you've added since are discarded.|r", 1, 1, 1, true)
-            else
+            if not State.GetFilterActive() then
                 GameTooltip:AddLine("Nothing to restore.", 1, 1, 1, true)
+                return
+            end
+            local restoreCount = State.GetRevertAddCount()
+            local keepCount    = State.GetDriftAddCount()
+            if restoreCount > 0 then
+                GameTooltip:AddLine(string.format("Restores %d quest%s from before the filter.",
+                    restoreCount, restoreCount == 1 and "" or "s"), 1, 1, 1, true)
+            end
+            if keepCount > 0 then
+                GameTooltip:AddLine(string.format("Keeps %d quest%s you've added since.",
+                    keepCount, keepCount == 1 and "" or "s"), 1, 1, 1, true)
+            end
+            if restoreCount == 0 and keepCount == 0 then
+                GameTooltip:AddLine("Clears filter state — no changes to tracking.", 1, 1, 1, true)
             end
         end)
     revertBtn:SetPoint("RIGHT", filterBtn, "LEFT", -2, 0)
