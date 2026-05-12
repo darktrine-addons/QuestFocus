@@ -25,7 +25,11 @@ local function Mount()
     -- ANCHOR_LEFT for the tooltip: extends to the left of the button, into
     -- the map area (clean). Other directions would overlap the panel.
     local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_LEFT" })
-    inst.filterBtn:SetPoint("BOTTOMLEFT", QuestMapFrame.QuestsTab, "TOPLEFT", 0, 2)
+    -- X offset of 20 = one button width (18) + gap (2). Pair layout extends
+    -- left from filterBtn (revertBtn is to its left), so this offset places
+    -- revertBtn's left edge at QuestsTab's left edge — pair sits squarely
+    -- above the tab instead of half-spilling into the map area.
+    inst.filterBtn:SetPoint("BOTTOMLEFT", QuestMapFrame.QuestsTab, "TOPLEFT", 20, 2)
 
     mounted = true
     return true
