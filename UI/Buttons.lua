@@ -28,11 +28,11 @@ local function UpdateOne(inst)
     -- Don't override the gray-during-combat color set by the OnEvent handler.
     if not InCombatLockdown() and inst.filterBtn.icon then
         if active and dirty then
-            inst.filterBtn.icon:SetVertexColor(1.0, 0.85, 0.2)   -- yellow / amber
+            inst.filterBtn.icon:SetVertexColor(1.0, 0.55, 0.15)  -- orange: drift detected
         elseif active then
-            inst.filterBtn.icon:SetVertexColor(0.4, 1.0, 0.4)    -- green
+            inst.filterBtn.icon:SetVertexColor(0.4, 1.0, 0.4)    -- green: clean
         else
-            inst.filterBtn.icon:SetVertexColor(1, 1, 1)          -- white
+            inst.filterBtn.icon:SetVertexColor(1, 1, 1)          -- white: inactive
         end
     end
 
@@ -65,7 +65,7 @@ local function FilterTooltip()
         GameTooltip:AddLine("Click to narrow your watch list to quests with objectives in this zone.", 1, 1, 1, true)
     elseif dirty then
         local n = State.GetDriftAddCount()
-        GameTooltip:AddLine(string.format("|cffffd62aFilter is applied, %d quest%s added since.|r",
+        GameTooltip:AddLine(string.format("|cffff8c26Filter is applied, %d quest%s added since.|r",
             n, n == 1 and "" or "s"), 1, 1, 1, true)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Click to re-narrow for current zone. Your interim quests will be remembered for revert.", 1, 1, 1, true)
