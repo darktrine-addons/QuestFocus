@@ -1,17 +1,20 @@
 -- ButtonQuestLog.lua — host module: mounts the filter/revert pair on the
 -- quest log side panel of the world map (`QuestMapFrame`).
 --
--- Anchor: bottom-right of QuestMapFrame, in the typically-empty footer area.
---   - The v0.1.0-beta TOPRIGHT anchor overlapped with campaign-header text
---     when a campaign was active (see in-game screenshot 2026-05-11).
---   - The earlier WorldMapFrame.SidePanelToggle probe in b571a4c placed the
---     buttons off-screen — the toggle frame existed but wasn't the
---     right-side quest-log tab the user described.
---   - BOTTOMRIGHT is consistently clean across builds.
+-- Anchor: outside QuestMapFrame's TOPRIGHT corner — just above the panel's
+-- top edge, near its right side. Sits in the horizontal strip between
+-- WorldMapFrame's title bar and QuestMapFrame's content area. This area
+-- is typically clean and doesn't compete with any panel widgets.
 --
--- See umbrella issue #1 polish item: long-term we still want the right-side
--- tab strip anchor (above the topmost "!" tab), but we couldn't reliably
--- identify that frame's Blizzard-stable path. Footer is the safe interim.
+-- Iteration history (so future-me knows why we're here):
+--   v0.1.0-beta: anchored INSIDE QuestMapFrame at TOPRIGHT — overlapped
+--     with campaign header and the panel's section-collapse "−" button.
+--   b571a4c: probed WorldMapFrame.SidePanelToggle — that frame exists in
+--     TWW but isn't the right-side "!" quest-log tab; anchoring there
+--     placed buttons off-screen.
+--   812db98: BOTTOMRIGHT inside QuestMapFrame — visible but the footer
+--     was also crowded.
+--   Current: outside the panel's top edge.
 --
 -- Parent is QuestMapFrame, so visibility inherits: buttons hide when the
 -- world map is closed or when the quest log panel is collapsed.
@@ -25,11 +28,13 @@ local function Mount()
     if mounted then return true end
     if not QuestMapFrame then return false end
 
-    -- ANCHOR_TOPLEFT: tooltip appears above-and-to-the-left of the button.
-    -- Since the buttons sit at bottom-right of the panel, tooltip extends
-    -- up-and-left into the quest list area — visible without clipping.
-    local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_TOPLEFT" })
-    inst.filterBtn:SetPoint("BOTTOMRIGHT", QuestMapFrame, "BOTTOMRIGHT", -8, 8)
+    -- ANCHOR_BOTTOMLEFT: tooltip appears below-and-to-the-left of the button.
+    -- Since the buttons sit just above the panel's top-right, tooltip extends
+    -- down-and-left into the quest list area — visible without clipping the
+    -- world-map title bar above.
+    local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_BOTTOMLEFT" })
+    -- BOTTOMRIGHT of the pair anchored 4px above QuestMapFrame's TOPRIGHT corner.
+    inst.filterBtn:SetPoint("BOTTOMRIGHT", QuestMapFrame, "TOPRIGHT", 0, 4)
 
     mounted = true
     return true

@@ -9,11 +9,25 @@ function Relevance.GetCurrentMapID()
     return C_Map.GetBestMapForUnit("player")
 end
 
--- A quest counts as "in current zone" if it has an objective marker or a local POI here.
--- These are the two fields the quest log gives us that reflect map relevance.
+-- A quest counts as "in current zone" if any of:
+--   info.isOnMap     — quest has an objective marker on the current map
+--   info.hasLocalPOI — quest has a POI (objective dot or turn-in "?") on
+--                      the current map
+--   C_QuestLog.IsOnMap(questID) — direct API query; in practice this is
+--                      more inclusive than the cached info fields, and
+--                      crucially it tends to pick up completed quests with
+--                      turn-in NPCs in the current zone (which the cached
+--                      info fields sometimes miss).
+--
+-- Inclusive-by-design: when a user clicks "Focus on this zone" they usually
+-- mean "everything I can advance here" — a completed quest whose turn-in is
+-- in the zone is something they'll act on while here.
 function Relevance.IsQuestInCurrentZone(questInfo)
-    if not questInfo then return false end
-    return (questInfo.isOnMap == true) or (questInfo.hasLocalPOI == true)
+    if not questInfo or not questInfo.questID then return false end
+    if questInfo.isOnMap     == true then return true end
+    if questInfo.hasLocalPOI == true then return true end
+    if C_QuestLog.IsOnMap and C_QuestLog.IsOnMap(questInfo.questID) then return true end
+    return false
 end
 
 -- Walk the quest log once and return the set of questIDs relevant to the current zone.
