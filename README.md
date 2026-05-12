@@ -1,8 +1,6 @@
 # QuestFocus
 
-Narrow the set of tracked quests to ones relevant to your current zone, with one-click revert. Two small buttons attach to the objective tracker. No settings panel; no auto mode (yet).
-
-If you have the world map open (full-screen by default), the tracker is hidden — use the slash commands `/qf` (focus) and `/qf revert` instead. A second button pair for the world-map quest log was attempted but couldn't be placed reliably across the variants of `QuestMapFrame` we tested; tracked in the polish backlog for a future revisit.
+Narrow the set of tracked quests to ones relevant to your current zone, with one-click revert. Two small buttons attach to the objective tracker, and a mirror pair attaches above the world-map quest log's tab strip. No settings panel; no auto mode (yet).
 
 ## What it does
 
@@ -35,6 +33,8 @@ This preserves any quest you've accepted/tracked since the filter was applied. Q
 ## Layout
 
 **Tracker pair**: parented to `ObjectiveTrackerFrame.Header` (modern retail; falls back to `HeaderMenu` / `ObjectiveTrackerFrame` itself on older builds). Anchored next to the minimize button. Inherit visibility from the tracker — when nothing is tracked and the tracker hides itself, the buttons hide too. When Edit Mode moves or scales the tracker, the buttons follow.
+
+**Quest-log pair**: parented to `QuestMapFrame`, anchored directly above `QuestMapFrame.QuestsTab` (the small tab on the panel's upper-left in modern retail). Visible whenever the world map is open. Shares all state with the tracker pair — pressing one updates the other instantly.
 
 ## Slash commands
 
