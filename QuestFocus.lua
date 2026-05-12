@@ -11,7 +11,6 @@ boot:SetScript("OnEvent", function(self, event, who)
         ns.Core.State.EnsureDB()
     elseif event == "PLAYER_ENTERING_WORLD" then
         ns.UI.MountTrackerButtons()
-        ns.UI.MountQuestLogButtons()
     end
 end)
 
@@ -20,7 +19,9 @@ SLASH_QUESTFOCUS2 = "/questfocus"
 SlashCmdList.QUESTFOCUS = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
     if msg == "filter" or msg == "" then
-        ns.Core.Apply.Filter()
+        ns.Core.Apply.Filter(false)
+    elseif msg == "filtershift" or msg == "promote" then
+        ns.Core.Apply.Filter(true)
     elseif msg == "revert" then
         ns.Core.Revert.Revert()
     elseif msg == "status" then
@@ -29,6 +30,6 @@ SlashCmdList.QUESTFOCUS = function(msg)
         print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
             tostring(active), restorable))
     else
-        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | revert | status")
+        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status")
     end
 end

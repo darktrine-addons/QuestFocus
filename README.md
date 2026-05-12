@@ -1,6 +1,8 @@
 # QuestFocus
 
-Narrow the set of tracked quests to ones relevant to your current zone, with one-click revert. Two small buttons attach to the objective tracker AND inside the world-map quest log; no settings panel; no auto mode (yet). Both locations share state — pressing one button affects the other.
+Narrow the set of tracked quests to ones relevant to your current zone, with one-click revert. Two small buttons attach to the objective tracker. No settings panel; no auto mode (yet).
+
+If you have the world map open (full-screen by default), the tracker is hidden — use the slash commands `/qf` (focus) and `/qf revert` instead. A second button pair for the world-map quest log was attempted but couldn't be placed reliably across the variants of `QuestMapFrame` we tested; tracked in the polish backlog for a future revisit.
 
 ## What it does
 
@@ -34,9 +36,14 @@ This preserves any quest you've accepted/tracked since the filter was applied. Q
 
 **Tracker pair**: parented to `ObjectiveTrackerFrame.Header` (modern retail; falls back to `HeaderMenu` / `ObjectiveTrackerFrame` itself on older builds). Anchored next to the minimize button. Inherit visibility from the tracker — when nothing is tracked and the tracker hides itself, the buttons hide too. When Edit Mode moves or scales the tracker, the buttons follow.
 
-**Quest-log pair**: parented to `QuestMapFrame` (the side panel inside `WorldMapFrame`). Anchored to the top-right corner of the quest log panel. Inherit visibility from the panel — when the world map is closed or the side panel is collapsed, the buttons hide. Available whenever the quest log is open.
+## Slash commands
 
-Both pairs share the same underlying state, so toggling filter or revert from one location updates the visual state of the other immediately.
+Work in any context, including with the world map open:
+
+- `/qf` (or `/qf filter`) — focus on current zone (narrow only)
+- `/qf promote` (or `/qf filtershift`) — shift-click equivalent: also promote untracked zone quests from your log
+- `/qf revert` — restore pre-filter watch list plus any quests you've added since
+- `/qf status` — print current filter / restorable counts
 
 ## Slash commands
 

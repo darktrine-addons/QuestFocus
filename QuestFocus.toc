@@ -15,5 +15,4 @@ Core\Apply.lua
 Core\Revert.lua
 UI\Buttons.lua
 UI\ButtonTracker.lua
-UI\ButtonQuestLog.lua
 QuestFocus.lua
