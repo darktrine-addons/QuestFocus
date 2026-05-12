@@ -2,7 +2,59 @@
 
 Status: draft, not yet implemented
 Audience: future implementers, design reviewers
-Last update: scaffolded alongside QuestFocus v0.1.x
+Last update: scaffolded alongside QuestFocus v0.1.x; revised after native-API discovery
+
+---
+
+## 0. Native API discovery (post-initial-draft)
+
+After the first draft of this design committed to a broadcast-based protocol (Route 1), follow-up research surfaced the canonical Blizzard API that already exposes the data:
+
+**`C_TooltipInfo.GetQuestPartyProgress(questID [, omitTitle, ignoreActivePlayer]) → TooltipData`**
+
+Sourced from Blizzard's API documentation at `Interface/AddOns/Blizzard_APIDocumentationGenerated/TooltipInfoDocumentation.lua` in [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source):
+
+```lua
+Name = "GetQuestPartyProgress",
+Type = "Function",
+MayReturnNothing = true,
+SecretArguments = "AllowedWhenUntainted",
+Arguments = {
+    { Name = "questID",            Type = "number", Nilable = false },
+    { Name = "omitTitle",          Type = "bool",   Nilable = true  },
+    { Name = "ignoreActivePlayer", Type = "bool",   Nilable = true  },
+},
+Returns = {
+    { Name = "data", Type = "TooltipData", Nilable = false },
+},
+```
+
+This is the getter half of `GameTooltip:SetQuestPartyProgress(questID, omitTitle, ignoreActivePlayer)` — the exact call Blizzard's own quest map log uses to render party progress lines on quest title hover (see `Blizzard_UIPanels_Game/Mainline/QuestMapFrame.lua`, `QuestMapLogTitleButton_OnEnter`). The accessor delegation is explicit in `TooltipDataHandler.lua`:
+
+```lua
+local accessors = {
+    SetQuestPartyProgress = "GetQuestPartyProgress",
+    ...
+};
+```
+
+### What this means for the design
+
+The native API returns the **same data Blizzard renders in its own tooltip**: per-party-member progress lines, names, objective counts, completion state. As `TooltipData` — a structured table of `lines`, each with `leftText`, `rightText`, color, etc. — accessible to addon Lua, no comm protocol required.
+
+**Implication: the broadcast-based design (Route 1) is no longer required for MVP.** We poll `C_TooltipInfo.GetQuestPartyProgress` per tracked quest on relevant events, parse the returned lines, compute the aggregate state, render the indicator. The protocol-design and library-embedding work originally in Phase 2 can defer to Phase 3 or be dropped entirely.
+
+### Caveats specific to this API
+
+- **`SecretArguments = "AllowedWhenUntainted"`** — the same flag family that bit us in the QLC investigations. Calling the function from addon-tainted Lua is permitted, but numeric fields in the returned `TooltipData` may be "secret numbers": arithmetic on them throws "attempt to perform arithmetic on a secret number value" errors. Mitigation: read line *strings* (e.g. `line.leftText = "Player: 3/5"`) and parse the progress text with string functions. Never do math on the structured numeric fields directly. Pattern is well-trodden in WoW addons — Questie, SmartQuest, etc. use it for similar reasons.
+- **`MayReturnNothing = true`** — the function can return nil. Handle it: solo player, quest with no shareable progress, quest types Blizzard excludes (scenarios, certain campaign quests).
+- **No "party progress changed" event.** We poll. Triggers: `QUEST_LOG_UPDATE`, `QUEST_WATCH_LIST_CHANGED`, `GROUP_ROSTER_UPDATE`, `UNIT_QUEST_LOG_CHANGED` (fires on party members), and a coarse periodic timer (~3s) as a safety net for events we don't subscribe.
+- **Updates lag the server.** Same constraint Blizzard's own UI has — client only knows what the server has pushed. Acceptable for an at-a-glance indicator; UX consequence is "occasional state staleness" not "wrong data."
+
+### Revised approach
+
+- MVP becomes the full feature on native data only. No broadcast.
+- Architecture below is rewritten as Section 6 (Communication / data plane) — the broadcast protocol description is preserved as Phase 3 future work but is no longer in the MVP critical path.
 
 ---
 
@@ -166,9 +218,40 @@ Members with unknown state (no QuestFocusParty installed) are counted neither to
 
 ---
 
-## 6. Communication protocol
+## 6. Data plane
 
-### 6.1 Channel
+**Revision after §0:** the data plane is now native-API-first. The broadcast protocol below is preserved as Phase 3 future work — useful only if we want signals not in `C_TooltipInfo.GetQuestPartyProgress` (e.g. accept-recency timestamps).
+
+### 6.0 Native data path (MVP)
+
+For each tracked quest, on a recompute trigger, the indicator calls:
+
+```lua
+local data = C_TooltipInfo.GetQuestPartyProgress(questID, true, true)
+-- (omitTitle = true, ignoreActivePlayer = true): we don't need the
+-- quest title in the lines (we know it), and we don't want our own
+-- progress mixed in with party member progress.
+```
+
+Returned `data` is a `TooltipData` table with `lines = { { leftText, rightText, ... }, ... }`. Each line corresponds to one party member's row. The line text is the canonical "Name: 3/5" format Blizzard renders.
+
+Parser: split `leftText` on `:` to extract member name and progress string. Progress string contains either a numeric "K/N" pair or a localized "Complete" / similar marker for completed-not-turned-in state. Map to internal state enum (`in_progress / complete / not_on_quest`).
+
+Members not on the quest appear as a line distinct from in-progress members — exact format to be confirmed during implementation, but Blizzard's tooltip renders something like "Name: Not on quest" or omits the line entirely (in which case absence implies not-on-quest, cross-referenced with the party roster).
+
+Triggers for recompute:
+- `QUEST_LOG_UPDATE` (local quest log change)
+- `QUEST_WATCH_LIST_CHANGED` (tracking change)
+- `GROUP_ROSTER_UPDATE` (party churn)
+- `UNIT_QUEST_LOG_CHANGED` with `unit == "partyN"` (party member progress event)
+- Periodic 3-second sweep as a safety net for events we miss
+
+Taint-safety:
+- Never do arithmetic on numeric fields in the returned `data`. Strings only.
+- Parsing `"3/5"` with `string.match` produces fresh local numbers, untainted.
+- No field-writes onto Blizzard frames (tooltip data isn't a frame, but the tracker row is — rules still apply).
+
+### 6.1 Broadcast channel (deferred, Phase 3 polish only)
 
 `CHAT_MSG_ADDON`, prefix `QFP1` (`QuestFocusParty` v1). Sent to `PARTY` distribution.
 
@@ -430,35 +513,44 @@ We will document this clearly in the README and probably a one-line privacy noti
 
 ## 11. Phasing / roadmap
 
-### Phase 1: MVP (target: ~1 week of focused work)
+(Revised after §0 native-API discovery.)
+
+### Phase 1: MVP — native API only, full aggregate states
+
+Significantly larger scope than originally planned, because no broadcast protocol is needed.
 
 - Pre-requisite: refactor existing files into `ZoneFilter/` subtree, introduce `Core/Config.lua` module toggle
-- PartySync module skeleton with comm + state + aggregate + indicator
-- Native `IsUnitOnQuest` data path only (no broadcast in/out yet)
-- Aggregate states: green / yellow only (no orange share-detection, no blue turn-in detection)
-- Alt-tooltip with class-colored names
+- `PartySync` module skeleton with state + aggregate + indicator + Alt-tooltip
+- Native data via `C_TooltipInfo.GetQuestPartyProgress` per tracked quest
+- All four aggregate states light up: green / yellow / blue / orange (the latter two using the tooltip data's completion-state and member-presence info)
+- Alt-tooltip with class-colored names and per-member state parsed from `TooltipData.lines`
+- Taint-safety: string parsing, no arithmetic on returned numerics
 
-Ships as the smallest useful thing — already meaningfully reduces "do you have this?" questions even without the richer states.
+This now ships as the full feature, not a degraded MVP.
 
-### Phase 2: Broadcast protocol
-
-- Embed AceComm + LibSerialize
-- HELLO / DELTA / ZONE / BYE messages
-- Blue (turn-in opportunity) and orange (share opportunity) states light up
-- Mixed-addon parties handled cleanly
-
-### Phase 3: Polish
+### Phase 2: Polish and reliability
 
 - Settings UI (rather than slash-only)
 - Modifier-key configurability
 - Indicator size / position tuning per user
-- Suppress indicators on quest types we know are non-shareable
+- Suppress indicators on quest types we detect as non-shareable (scenarios, etc.)
+- Real-time stress test the recompute path (3-second sweep cadence; tune if it costs CPU)
+- Raid support: aggregate-only display, hide per-member tooltip beyond N members
+
+### Phase 3: Broadcast protocol (optional, only if signal-gap motivates it)
+
+Only revisit if Phase 1 reveals data we can't obtain natively:
+- Accept-recency timestamps (the user's original "I picked this up recently in a party" signal — not present in tooltip data)
+- Cross-addon coordination features (e.g. auto-share-on-pickup)
+- Faster-than-poll responsiveness
+
+If undertaken, the original broadcast design (AceComm, LibSerialize, HELLO / DELTA / ZONE / BYE messages, throttling) applies as written in §6.1.
 
 ### Phase 4: Maybe later
 
-- Raid support beyond aggregate (e.g., a "X of 25 have this" badge)
 - Auto-share suggestion (one-click share-the-quest button)
 - World-map quest log mirror of the tracker indicators
+- Other group-coordination UI built on the same state model
 
 ---
 
@@ -480,10 +572,11 @@ Ships as the smallest useful thing — already meaningfully reduces "do you have
 
 ## 13. Decision log (for the implementer)
 
-- **Native-API-only first vs. broadcast-first?** → MVP is native-only; broadcast lands in Phase 2.
+- **Native API vs. broadcast?** → Native via `C_TooltipInfo.GetQuestPartyProgress` is the MVP data plane. Broadcast deferred to Phase 3 as optional polish, only if signal gaps surface. (Revised after §0 discovery.)
 - **Same addon vs. separate?** → Same addon, two configurable modules. (User decision.)
 - **Aggregate dot vs. per-member dots?** → Aggregate. Per-member is the Alt-tooltip.
 - **Where do dots live?** → Tracker rows only (MVP). Not the world-map quest log.
-- **Library choices?** → AceComm-3.0, LibSerialize. Possibly LibDeflate.
-- **Privacy default?** → Broadcast on. Document; allow opt-out.
+- **Library choices?** → None for MVP (native API needs nothing extra). If Phase 3 broadcast is built later: AceComm-3.0, LibSerialize, possibly LibDeflate.
+- **Privacy default?** → N/A for native-only MVP (we only read, not broadcast). If Phase 3 broadcast is built: broadcast on by default, allow opt-out.
 - **Hot-toggle?** → No. `/reload` after module enable/disable. Simpler; niche operation.
+- **Taint posture for native API?** → Read line strings from `TooltipData`, parse with `string.match`. Never do arithmetic on numeric fields in the returned data — they may be "secret numbers" per the `SecretArguments` flag.
