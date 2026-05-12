@@ -17,3 +17,4 @@ UI\Buttons.lua
 UI\ButtonTracker.lua
 UI\ButtonQuestLog.lua
 QuestFocus.lua
+Test\PartyProbe.lua

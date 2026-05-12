@@ -55,6 +55,26 @@ ns.UI.OnStateChanged = UpdateAll
 -- Tooltip copy (identical for every host — state is global)
 -- ============================================================
 
+-- Cheap on hover: one quest-log walk (via GetRelevantQuests) + one watch-list
+-- intersection. Returns (untrackCount, promoteCount, mapKnown).
+local function PredictFilterDelta()
+    local Relevance = ns.Core.Relevance
+    if not Relevance.GetCurrentMapID() then
+        return 0, 0, false
+    end
+    local relevant = Relevance.GetRelevantQuests()
+    local current  = ns.Core.State.GetCurrentWatches()
+
+    local untrack, promote = 0, 0
+    for qid in pairs(current) do
+        if not relevant[qid] then untrack = untrack + 1 end
+    end
+    for qid in pairs(relevant) do
+        if not current[qid] then promote = promote + 1 end
+    end
+    return untrack, promote, true
+end
+
 local function FilterTooltip()
     local State  = ns.Core.State
     local active = State.GetFilterActive()
@@ -62,20 +82,39 @@ local function FilterTooltip()
 
     GameTooltip:SetText("Focus on this zone", 1, 0.82, 0)
     if not active then
-        GameTooltip:AddLine("Click to narrow your watch list — untrack quests with no objectives in this zone.", 1, 1, 1, true)
+        GameTooltip:AddLine("Narrows your watch list to quests with objectives in this zone.", 1, 1, 1, true)
     elseif dirty then
         local n = State.GetDriftAddCount()
         GameTooltip:AddLine(string.format("|cffff8c26Filter is applied, %d quest%s added since.|r",
             n, n == 1 and "" or "s"), 1, 1, 1, true)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Click to re-narrow for current zone. Your interim quests will be remembered for revert.", 1, 1, 1, true)
     else
         GameTooltip:AddLine("|cff44ff44Filter is applied and clean.|r", 1, 1, 1, true)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Click to re-narrow (e.g. after a zone change).", 1, 1, 1, true)
     end
+
+    local untrack, promote, mapKnown = PredictFilterDelta()
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("|cffaaaaaaShift-click also adds untracked zone quests from your quest log.|r", 1, 1, 1, true)
+    if not mapKnown then
+        GameTooltip:AddLine("|cffaaaaaaCurrent zone unknown — open the world map once.|r", 1, 1, 1, true)
+    else
+        if untrack == 0 then
+            GameTooltip:AddLine("Click: |cffaaaaaano changes|r", 1, 1, 1, true)
+        else
+            GameTooltip:AddLine(string.format("Click: untrack |cffff7777%d|r quest%s",
+                untrack, untrack == 1 and "" or "s"), 1, 1, 1, true)
+        end
+        if untrack == 0 and promote == 0 then
+            GameTooltip:AddLine("Shift-click: |cffaaaaaano changes|r", 1, 1, 1, true)
+        elseif promote == 0 then
+            GameTooltip:AddLine(string.format("Shift-click: untrack |cffff7777%d|r (no zone quests to add)",
+                untrack), 1, 1, 1, true)
+        elseif untrack == 0 then
+            GameTooltip:AddLine(string.format("Shift-click: track |cff77ff77%d|r from quest log",
+                promote), 1, 1, 1, true)
+        else
+            GameTooltip:AddLine(string.format("Shift-click: untrack |cffff7777%d|r, track |cff77ff77%d|r from quest log",
+                untrack, promote), 1, 1, 1, true)
+        end
+    end
 end
 
 local function RevertTooltip()
