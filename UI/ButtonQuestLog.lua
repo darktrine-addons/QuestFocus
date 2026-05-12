@@ -1,71 +1,38 @@
--- ButtonQuestLog.lua — host module: mounts the filter/revert pair near the
--- right-side quest log tab on the world map.
+-- ButtonQuestLog.lua — host module: mounts the filter/revert pair on the
+-- quest log side panel of the world map (`QuestMapFrame`).
 --
--- The world map has a vertical strip of tabs on the right edge (yellow "!"
--- toggle for the quest log, plus map-pin filter buttons below it). The
--- topmost tab is the quest-log toggle; we anchor the pair just above it.
+-- Anchor: bottom-right of QuestMapFrame, in the typically-empty footer area.
+--   - The v0.1.0-beta TOPRIGHT anchor overlapped with campaign-header text
+--     when a campaign was active (see in-game screenshot 2026-05-11).
+--   - The earlier WorldMapFrame.SidePanelToggle probe in b571a4c placed the
+--     buttons off-screen — the toggle frame existed but wasn't the
+--     right-side quest-log tab the user described.
+--   - BOTTOMRIGHT is consistently clean across builds.
 --
--- Parent is the tab's parent (typically WorldMapFrame) rather than
--- QuestMapFrame, so the buttons remain visible when the user collapses the
--- quest log panel — they can re-filter without expanding first.
+-- See umbrella issue #1 polish item: long-term we still want the right-side
+-- tab strip anchor (above the topmost "!" tab), but we couldn't reliably
+-- identify that frame's Blizzard-stable path. Footer is the safe interim.
 --
--- Anchor frame discovery is defensive: the precise Blizzard path for this
--- tab varies by patch. Probe a couple of known names; if none resolves,
--- fall back to anchoring inside QuestMapFrame's top-right (the v0.1.x
--- behavior) so the pair still appears, just less ideally placed.
+-- Parent is QuestMapFrame, so visibility inherits: buttons hide when the
+-- world map is closed or when the quest log panel is collapsed.
 
 local addonName, ns = ...
 ns.UI = ns.UI or {}
 
 local mounted = false
 
--- Probe for the right-side quest-log toggle tab.
--- Returns the tab frame, or nil if no known path resolves.
-local function FindQuestLogTab()
-    if not WorldMapFrame then return nil end
-
-    -- Modern retail (TWW / Midnight): side-panel toggle. Most likely match.
-    if WorldMapFrame.SidePanelToggle then
-        return WorldMapFrame.SidePanelToggle
-    end
-
-    -- Older retail variants
-    if QuestMapFrame and QuestMapFrame.HideShowButton then
-        return QuestMapFrame.HideShowButton
-    end
-    if WorldMapFrame.BorderFrame and WorldMapFrame.BorderFrame.QuestLogToggleButton then
-        return WorldMapFrame.BorderFrame.QuestLogToggleButton
-    end
-
-    return nil
-end
-
 local function Mount()
     if mounted then return true end
+    if not QuestMapFrame then return false end
 
-    local tab = FindQuestLogTab()
-    if tab then
-        -- Best path: anchor above the topmost tab in the right-side strip.
-        -- Parent to the tab's host so visibility follows the map (not the
-        -- quest-log panel, which may be collapsed).
-        local parent = tab:GetParent() or WorldMapFrame
-        local inst = ns.UI.MakePair(parent, { tooltipAnchor = "ANCHOR_LEFT" })
-        inst.filterBtn:SetPoint("BOTTOM", tab, "TOP", 0, 4)
-        mounted = true
-        return true
-    end
+    -- ANCHOR_TOPLEFT: tooltip appears above-and-to-the-left of the button.
+    -- Since the buttons sit at bottom-right of the panel, tooltip extends
+    -- up-and-left into the quest list area — visible without clipping.
+    local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_TOPLEFT" })
+    inst.filterBtn:SetPoint("BOTTOMRIGHT", QuestMapFrame, "BOTTOMRIGHT", -8, 8)
 
-    -- Fallback: if we can't find the tab, anchor inside QuestMapFrame's
-    -- top-right corner — visible, but may overlap the campaign header.
-    -- Acceptable fallback so users still get the second pair.
-    if QuestMapFrame then
-        local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_BOTTOMLEFT" })
-        inst.filterBtn:SetPoint("TOPRIGHT", QuestMapFrame, "TOPRIGHT", -8, -8)
-        mounted = true
-        return true
-    end
-
-    return false
+    mounted = true
+    return true
 end
 
 function ns.UI.MountQuestLogButtons()

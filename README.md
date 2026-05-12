@@ -4,7 +4,7 @@ Narrow the set of tracked quests to ones relevant to your current zone, with one
 
 ## What it does
 
-- **🔍 Focus button** — Re-tracks only the quests that have an objective or POI in your current zone. Quests outside the zone are un-tracked. Idempotent and safe to re-apply when you change zones.
+- **🔍 Focus button** — Click: narrow your watch list — untrack quests with no objective in the current zone. Quests in the zone that you haven't tracked are left alone. **Shift-click**: same untrack pass, *plus* promote any zone-relevant quest from your quest log into the watch list. Idempotent and safe to re-apply when you change zones.
 - **↶ Revert button** — Restores the watch list to the snapshot taken when you first pressed Focus, **plus any quests you've added since** (manually or via Blizzard's auto-track). Snapshot is per-character and survives `/reload`.
 - **Tri-state filter indicator** — The 🔍 icon shows:
   - White: no filter applied

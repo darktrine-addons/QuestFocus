@@ -62,7 +62,7 @@ local function FilterTooltip()
 
     GameTooltip:SetText("Focus on this zone", 1, 0.82, 0)
     if not active then
-        GameTooltip:AddLine("Click to narrow your watch list to quests with objectives in this zone.", 1, 1, 1, true)
+        GameTooltip:AddLine("Click to narrow your watch list — untrack quests with no objectives in this zone.", 1, 1, 1, true)
     elseif dirty then
         local n = State.GetDriftAddCount()
         GameTooltip:AddLine(string.format("|cffff8c26Filter is applied, %d quest%s added since.|r",
@@ -74,6 +74,8 @@ local function FilterTooltip()
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Click to re-narrow (e.g. after a zone change).", 1, 1, 1, true)
     end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("|cffaaaaaaShift-click also adds untracked zone quests from your quest log.|r", 1, 1, 1, true)
 end
 
 local function RevertTooltip()
@@ -117,7 +119,7 @@ local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor)
 
     b:SetScript("OnClick", function(self)
         if InCombatLockdown() then return end
-        onClick()
+        onClick(IsShiftKeyDown() and true or false)
     end)
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, tooltipAnchor or "ANCHOR_LEFT")
@@ -155,12 +157,12 @@ function ns.UI.MakePair(parent, opts)
     local gap           = opts.gap or 2
 
     local filterBtn = MakeButton(parent, "common-icon-zoomin",
-        function() ns.Core.Apply.Filter() end,
+        function(addFromLog) ns.Core.Apply.Filter(addFromLog) end,
         FilterTooltip,
         tooltipAnchor)
 
     local revertBtn = MakeButton(parent, "common-icon-undo",
-        function() ns.Core.Revert.Revert() end,
+        function() ns.Core.Revert.Revert() end,  -- shift state ignored on revert
         RevertTooltip,
         tooltipAnchor)
     revertBtn:SetPoint("RIGHT", filterBtn, "LEFT", -gap, 0)

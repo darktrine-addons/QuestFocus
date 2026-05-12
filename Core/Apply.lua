@@ -1,13 +1,20 @@
 -- Apply.lua — the Filter operation.
 --
--- First call: snapshot the current watch list, compute zone-relevant set,
---             apply the diff. Set lastApplied = relevant set.
+-- Two click modes:
+--   Plain click (addFromLog = false): narrow only. Untrack any watch-list
+--     entry whose quest isn't in the current zone. Do not promote
+--     untracked zone-relevant quests from the quest log.
+--   Shift-click (addFromLog = true): narrow + promote. Same untrack pass,
+--     plus AddQuestWatch on any quest log entry that's zone-relevant but
+--     not currently watched.
+--
+-- First call: snapshot the current watch list, apply the chosen mode, set
+--             lastApplied to the post-filter watch state.
 --
 -- Subsequent call (re-apply): if we're "dirty" (current has quests that
 --             weren't in lastApplied), those drift adds get folded into
 --             snapshot first — so future revert preserves them. Then
---             recompute relevant for the current zone, apply the diff,
---             update lastApplied.
+--             re-apply with the chosen mode and refresh lastApplied.
 --
 -- After any successful call: drift_adds = ∅ (lastApplied has just been
 --             refreshed), so the indicator returns to green.
@@ -21,7 +28,7 @@ local function notify(msg)
     print("|cffffcc00QuestFocus|r " .. msg)
 end
 
-function Apply.Filter()
+function Apply.Filter(addFromLog)
     if InCombatLockdown() then
         notify("cannot filter during combat")
         return
@@ -62,6 +69,7 @@ function Apply.Filter()
     local relevant = Relevance.GetRelevantQuests()
     local untracked, tracked = 0, 0
 
+    -- Always: untrack any current watch that's not zone-relevant
     for qid in pairs(current) do
         if not relevant[qid] then
             C_QuestLog.RemoveQuestWatch(qid)
@@ -69,17 +77,31 @@ function Apply.Filter()
         end
     end
 
-    for qid in pairs(relevant) do
-        if not current[qid] then
-            C_QuestLog.AddQuestWatch(qid)
-            tracked = tracked + 1
+    -- Compute the post-untrack survivors (= current ∩ relevant).
+    local newLastApplied = {}
+    for qid in pairs(current) do
+        if relevant[qid] then newLastApplied[qid] = true end
+    end
+
+    -- Shift-click only: also promote untracked zone-relevant quests from the log
+    if addFromLog then
+        for qid in pairs(relevant) do
+            if not current[qid] then
+                C_QuestLog.AddQuestWatch(qid)
+                tracked = tracked + 1
+                newLastApplied[qid] = true
+            end
         end
     end
 
     -- Record the new post-filter state for drift detection.
-    State.SetLastApplied(relevant)
+    State.SetLastApplied(newLastApplied)
 
-    notify(string.format("focus: tracked %d, untracked %d", tracked, untracked))
+    if addFromLog then
+        notify(string.format("focus: tracked %d, untracked %d", tracked, untracked))
+    else
+        notify(string.format("focus: untracked %d (shift-click to add untracked zone quests)", untracked))
+    end
 
     if ns.UI and ns.UI.OnStateChanged then ns.UI.OnStateChanged() end
 end
