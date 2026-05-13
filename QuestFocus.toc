@@ -21,6 +21,7 @@ ZoneFilter\UI\ButtonQuestLog.lua
 
 PartySync\Core\State.lua
 PartySync\Core\Fetch.lua
+PartySync\Core\Aggregate.lua
 PartySync\Boot.lua
 
 QuestFocus.lua

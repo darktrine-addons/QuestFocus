@@ -132,6 +132,13 @@ SlashCmdList.QFPROBE2 = function(msg)
     local result = Fetch.GetPartyProgress(qid)
     print(string.format("|cffffcc00QF probe|r qid=%d |cffaaaaaa(%s)|r", qid, title))
 
+    local Aggregate = ns.PartySync.Aggregate
+    if Aggregate and Aggregate.Compute then
+        local agg = Aggregate.Compute(qid)
+        print(string.format("  |cffaaaaaaaggregate:|r %s |cffaaaaaa(%s)|r",
+            tostring(agg), Aggregate.Describe(agg)))
+    end
+
     local count = 0
     for _, player in pairs(result) do
         count = count + 1
