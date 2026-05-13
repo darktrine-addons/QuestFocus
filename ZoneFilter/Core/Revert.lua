@@ -9,9 +9,9 @@
 -- accept-or-untrack get cleaned up.
 
 local addonName, ns = ...
-ns.Core = ns.Core or {}
+ns.ZoneFilter = ns.ZoneFilter or {}
 local Revert = {}
-ns.Core.Revert = Revert
+ns.ZoneFilter.Revert = Revert
 
 local function notify(msg)
     print("|cffffcc00QuestFocus|r " .. msg)
@@ -23,7 +23,7 @@ function Revert.Revert()
         return
     end
 
-    local State = ns.Core.State
+    local State = ns.ZoneFilter.State
     local snap = State.GetSnapshot()
     if not snap then
         notify("no snapshot to revert to")
@@ -64,5 +64,5 @@ function Revert.Revert()
 
     notify(string.format("revert: restored %d, removed %d", added, removed))
 
-    if ns.UI and ns.UI.OnStateChanged then ns.UI.OnStateChanged() end
+    if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then ns.ZoneFilter.UI.OnStateChanged() end
 end

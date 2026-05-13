@@ -20,9 +20,9 @@
 --             refreshed), so the indicator returns to green.
 
 local addonName, ns = ...
-ns.Core = ns.Core or {}
+ns.ZoneFilter = ns.ZoneFilter or {}
 local Apply = {}
-ns.Core.Apply = Apply
+ns.ZoneFilter.Apply = Apply
 
 local function notify(msg)
     print("|cffffcc00QuestFocus|r " .. msg)
@@ -34,8 +34,8 @@ function Apply.Filter(addFromLog)
         return
     end
 
-    local State     = ns.Core.State
-    local Relevance = ns.Core.Relevance
+    local State     = ns.ZoneFilter.State
+    local Relevance = ns.ZoneFilter.Relevance
 
     local mapID = Relevance.GetCurrentMapID()
     if not mapID then
@@ -103,5 +103,5 @@ function Apply.Filter(addFromLog)
         notify(string.format("focus: untracked %d (shift-click to add untracked zone quests)", untracked))
     end
 
-    if ns.UI and ns.UI.OnStateChanged then ns.UI.OnStateChanged() end
+    if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then ns.ZoneFilter.UI.OnStateChanged() end
 end

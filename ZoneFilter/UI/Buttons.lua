@@ -9,7 +9,8 @@
 -- quest-log icon stay in lock-step.
 
 local addonName, ns = ...
-ns.UI = ns.UI or {}
+ns.ZoneFilter    = ns.ZoneFilter    or {}
+ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
 -- Each registered instance: { filterBtn = , revertBtn = , countBadge = }
 local instances = {}
@@ -20,7 +21,7 @@ local instances = {}
 
 local function UpdateOne(inst)
     if not inst.filterBtn then return end
-    local State  = ns.Core.State
+    local State  = ns.ZoneFilter.State
     local active = State.GetFilterActive()
     local dirty  = State.IsDirty()
     local count  = State.GetRevertAddCount()
@@ -49,7 +50,7 @@ local function UpdateAll()
 end
 
 -- Exposed so Apply/Revert can notify the UI after a state change.
-ns.UI.OnStateChanged = UpdateAll
+ns.ZoneFilter.UI.OnStateChanged = UpdateAll
 
 -- ============================================================
 -- Tooltip copy (identical for every host — state is global)
@@ -58,12 +59,12 @@ ns.UI.OnStateChanged = UpdateAll
 -- Cheap on hover: one quest-log walk (via GetRelevantQuests) + one watch-list
 -- intersection. Returns (untrackCount, promoteCount, mapKnown).
 local function PredictFilterDelta()
-    local Relevance = ns.Core.Relevance
+    local Relevance = ns.ZoneFilter.Relevance
     if not Relevance.GetCurrentMapID() then
         return 0, 0, false
     end
     local relevant = Relevance.GetRelevantQuests()
-    local current  = ns.Core.State.GetCurrentWatches()
+    local current  = ns.ZoneFilter.State.GetCurrentWatches()
 
     local untrack, promote = 0, 0
     for qid in pairs(current) do
@@ -76,7 +77,7 @@ local function PredictFilterDelta()
 end
 
 local function FilterTooltip()
-    local State  = ns.Core.State
+    local State  = ns.ZoneFilter.State
     local active = State.GetFilterActive()
     local dirty  = State.IsDirty()
 
@@ -118,7 +119,7 @@ local function FilterTooltip()
 end
 
 local function RevertTooltip()
-    local State = ns.Core.State
+    local State = ns.ZoneFilter.State
     GameTooltip:SetText("Restore tracking", 1, 0.82, 0)
     if not State.GetFilterActive() then
         GameTooltip:AddLine("Nothing to restore.", 1, 1, 1, true)
@@ -190,18 +191,18 @@ end
 -- The revertBtn is anchored to the filterBtn's LEFT automatically.
 -- ============================================================
 
-function ns.UI.MakePair(parent, opts)
+function ns.ZoneFilter.UI.MakePair(parent, opts)
     opts = opts or {}
     local tooltipAnchor = opts.tooltipAnchor   -- defaults to ANCHOR_LEFT inside MakeButton
     local gap           = opts.gap or 2
 
     local filterBtn = MakeButton(parent, "common-icon-zoomin",
-        function(addFromLog) ns.Core.Apply.Filter(addFromLog) end,
+        function(addFromLog) ns.ZoneFilter.Apply.Filter(addFromLog) end,
         FilterTooltip,
         tooltipAnchor)
 
     local revertBtn = MakeButton(parent, "common-icon-undo",
-        function() ns.Core.Revert.Revert() end,  -- shift state ignored on revert
+        function() ns.ZoneFilter.Revert.Revert() end,  -- shift state ignored on revert
         RevertTooltip,
         tooltipAnchor)
     revertBtn:SetPoint("RIGHT", filterBtn, "LEFT", -gap, 0)

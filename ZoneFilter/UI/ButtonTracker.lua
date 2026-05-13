@@ -5,7 +5,8 @@
 -- visibility (hidden when nothing is tracked) and follows Edit Mode movement.
 
 local addonName, ns = ...
-ns.UI = ns.UI or {}
+ns.ZoneFilter    = ns.ZoneFilter    or {}
+ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
 local mounted = false
 
@@ -23,14 +24,14 @@ local function Mount()
     local parent, anchor = FindAnchor()
     if not parent or not anchor then return false end
 
-    local inst = ns.UI.MakePair(parent)
+    local inst = ns.ZoneFilter.UI.MakePair(parent)
     inst.filterBtn:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
 
     mounted = true
     return true
 end
 
-function ns.UI.MountTrackerButtons()
+function ns.ZoneFilter.UI.MountTrackerButtons()
     if Mount() then return end
     local attempts = 0
     local ticker

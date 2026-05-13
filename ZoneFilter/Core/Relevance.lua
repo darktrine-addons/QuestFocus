@@ -1,9 +1,9 @@
 -- Relevance.lua — pure determination of "is this quest relevant to my current zone?"
 
 local addonName, ns = ...
-ns.Core = ns.Core or {}
+ns.ZoneFilter = ns.ZoneFilter or {}
 local Relevance = {}
-ns.Core.Relevance = Relevance
+ns.ZoneFilter.Relevance = Relevance
 
 function Relevance.GetCurrentMapID()
     return C_Map.GetBestMapForUnit("player")

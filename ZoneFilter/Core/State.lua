@@ -14,9 +14,9 @@
 --   revertTarget = snapshot ∪ drift_adds   (merge revert: preserve interim adds)
 
 local addonName, ns = ...
-ns.Core = ns.Core or {}
+ns.ZoneFilter = ns.ZoneFilter or {}
 local State = {}
-ns.Core.State = State
+ns.ZoneFilter.State = State
 
 -- ============================================================
 -- Bootstrap

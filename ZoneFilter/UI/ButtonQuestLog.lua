@@ -14,7 +14,8 @@
 -- quest-log tab. Anchor is relative to the tab so the pair tracks it.
 
 local addonName, ns = ...
-ns.UI = ns.UI or {}
+ns.ZoneFilter    = ns.ZoneFilter    or {}
+ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
 local mounted = false
 
@@ -24,7 +25,7 @@ local function Mount()
 
     -- ANCHOR_LEFT for the tooltip: extends to the left of the button, into
     -- the map area (clean). Other directions would overlap the panel.
-    local inst = ns.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_LEFT" })
+    local inst = ns.ZoneFilter.UI.MakePair(QuestMapFrame, { tooltipAnchor = "ANCHOR_LEFT" })
     -- X offset of 20 = one button width (18) + gap (2). Pair layout extends
     -- left from filterBtn (revertBtn is to its left), so this offset places
     -- revertBtn's left edge at QuestsTab's left edge — pair sits squarely
@@ -35,7 +36,7 @@ local function Mount()
     return true
 end
 
-function ns.UI.MountQuestLogButtons()
+function ns.ZoneFilter.UI.MountQuestLogButtons()
     if Mount() then return end
     local attempts = 0
     local ticker

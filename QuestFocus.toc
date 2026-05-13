@@ -9,12 +9,16 @@
 ## SavedVariables: QuestFocusDB
 ## SavedVariablesPerCharacter: QuestFocusCharDB
 
-Core\State.lua
-Core\Relevance.lua
-Core\Apply.lua
-Core\Revert.lua
-UI\Buttons.lua
-UI\ButtonTracker.lua
-UI\ButtonQuestLog.lua
+Core\Config.lua
+
+ZoneFilter\Core\State.lua
+ZoneFilter\Core\Relevance.lua
+ZoneFilter\Core\Apply.lua
+ZoneFilter\Core\Revert.lua
+ZoneFilter\UI\Buttons.lua
+ZoneFilter\UI\ButtonTracker.lua
+ZoneFilter\UI\ButtonQuestLog.lua
+
 QuestFocus.lua
+
 Test\PartyProbe.lua
