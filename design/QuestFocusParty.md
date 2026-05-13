@@ -2,7 +2,7 @@
 
 Status: draft, not yet implemented
 Audience: future implementers, design reviewers
-Last update: scaffolded alongside QuestFocus v0.1.x; revised after native-API discovery
+Last update: 2026-05-13 — empirical API behaviour confirmed via in-game probe
 
 ---
 
@@ -55,6 +55,39 @@ The native API returns the **same data Blizzard renders in its own tooltip**: pe
 
 - MVP becomes the full feature on native data only. No broadcast.
 - Architecture below is rewritten as Section 6 (Communication / data plane) — the broadcast protocol description is preserved as Phase 3 future work but is no longer in the MVP critical path.
+
+### 0.1 Confirmed empirical behaviour (probe, 2026-05-13)
+
+A throwaway `Test/PartyProbe.lua` module captured `C_TooltipInfo.GetQuestPartyProgress` output across 54 quests in a 2-member party (Artherio mage / Salmina warrior, in Silvermoon). All assertions below are observed-in-dump facts, not inferred-from-docs.
+
+**Returned `TooltipData.lines` is a flat array, not nested per-player.** Each element has a `type` integer that identifies its role:
+
+| `type` | Role | Key fields |
+|---|---|---|
+| `17` | Quest title row | `leftText` = quest title, `id` = questID, golden `leftColor` |
+| `18` | Per-player header | `leftText` = character name, `guid` = `"Player-…"`, golden `leftColor` |
+| `8`  | Objective row | `leftText` = `"K/N description"` (or `"\|cff7f7f7fNot on quest\|r"`), `completed` = bool, `numFulfilled` = int, `numRequired` = int, `wrapText` = true, `leftColor` matches Blizzard's done/undone colour |
+
+**Line ordering** is: title (type 17) → player1 header (type 18) → player1's objective rows (type 8 ×N) → player2 header → player2's objectives → … The walker is therefore a single pass with a "current player" cursor that gets reassigned on every type-18 line.
+
+**Argument behaviour**, confirmed:
+
+| Call | What was dropped from `lines` |
+|---|---|
+| `(questID)` | nothing — full title + all players + all objectives |
+| `(questID, true)` (`omitTitle`) | type-17 row only |
+| `(questID, false, true)` (`ignoreActivePlayer`) | type-18 row for the caller AND that player's type-8 rows. Other players retained. |
+| `(questID, true, true)` | both: pure partymate body, no caller, no title |
+
+**"Not on quest" partymates** are emitted, not omitted. When the caller has a quest but a partymate doesn't, the partymate still gets a type-18 header followed by a single type-8 row with `leftText = "|cff7f7f7fNot on quest|r"` (greyed) and `completed = false`. Observed on questID 48641 "Armies of Legionfall" (source=`log`).
+
+**Works for unwatched-but-accepted quests.** 29 of the 54 probed quests were `source = "log"` (in caller's log, not in caller's watch list). All returned identical-shape data to watched ones. **No need to constrain queries to the watch list.**
+
+**Empty `lines = {}`** appears only for degenerate quest types — observed once, for questID 75511 "Tracking Quest", a hidden Blizzard bookkeeping quest with no real objectives. Both `default` and `ignoreActivePlayer` variants returned empty.
+
+**Overlap rate in this sample:** 53/54 quests had at least one partymate objective row — basically every real quest. This is a 2-player same-content sample, not representative of all party sessions, but it validates that the API isn't gated by quest type / level / faction in any way that affects typical leveling content.
+
+**Numeric fields appear concrete, not "secret".** Both `numFulfilled` and `numRequired` round-tripped through SavedVariables serialization as ordinary integers (e.g. `["numRequired"] = 1`). Doing arithmetic on them in addon code should be safe, contrary to the cautious assumption in §6.0. The `SecretArguments = "AllowedWhenUntainted"` flag on this function appears to apply to *arguments*, not return values. Implementation should still test arithmetic in a real session before relying on it, but the dump gives strong evidence that string-parsing is **not** required.
 
 ---
 
@@ -224,20 +257,57 @@ Members with unknown state (no QuestFocusParty installed) are counted neither to
 
 ### 6.0 Native data path (MVP)
 
+(See §0.1 for the empirical line schema this section relies on.)
+
 For each tracked quest, on a recompute trigger, the indicator calls:
 
 ```lua
 local data = C_TooltipInfo.GetQuestPartyProgress(questID, true, true)
--- (omitTitle = true, ignoreActivePlayer = true): we don't need the
--- quest title in the lines (we know it), and we don't want our own
--- progress mixed in with party member progress.
+-- omitTitle=true: we know the title from our own caller context, drop the type-17 row.
+-- ignoreActivePlayer=true: drop the caller's type-18 header and the caller's
+--   type-8 objective rows, leaving only partymates' data in `data.lines`.
 ```
 
-Returned `data` is a `TooltipData` table with `lines = { { leftText, rightText, ... }, ... }`. Each line corresponds to one party member's row. The line text is the canonical "Name: 3/5" format Blizzard renders.
+`data` is a `TooltipData` table; `data.lines` is a flat array (§0.1). `data` may be `nil` (the API is documented `MayReturnNothing = true`); handle that case as "no party data, suppress indicator." `data.lines` may also be the empty table `{}` for degenerate or unsupported quests — same handling.
 
-Parser: split `leftText` on `:` to extract member name and progress string. Progress string contains either a numeric "K/N" pair or a localized "Complete" / similar marker for completed-not-turned-in state. Map to internal state enum (`in_progress / complete / not_on_quest`).
+**Parser** is a single-pass line walk, no string surgery needed:
 
-Members not on the quest appear as a line distinct from in-progress members — exact format to be confirmed during implementation, but Blizzard's tooltip renders something like "Name: Not on quest" or omits the line entirely (in which case absence implies not-on-quest, cross-referenced with the party roster).
+```lua
+local function walk(data)
+    if not data or not data.lines then return {} end
+    local byPlayer = {}                              -- { [guid] = { name, class, objectives = { ... } } }
+    local current
+    for _, line in ipairs(data.lines) do
+        if line.type == 18 then
+            current = { guid = line.guid, name = line.leftText, objectives = {} }
+            byPlayer[line.guid] = current
+        elseif line.type == 8 and current then
+            current.objectives[#current.objectives+1] = {
+                text         = line.leftText,
+                completed    = line.completed,
+                numFulfilled = line.numFulfilled,
+                numRequired  = line.numRequired,
+            }
+        end
+        -- type 17 (title) only appears when omitTitle=false; ignore.
+    end
+    return byPlayer
+end
+```
+
+**Per-quest state derivation from the parsed result:**
+
+```
+for each (guid, player) in byPlayer:
+    if all player.objectives have text matching "Not on quest" pattern:
+        peer_state[guid][qid] = "not_on_quest"
+    elseif all player.objectives have completed == true:
+        peer_state[guid][qid] = "complete"
+    else:
+        peer_state[guid][qid] = "in_progress"
+```
+
+"Not on quest" detection: check `text` against the literal `|cff7f7f7fNot on quest|r` substring, or against a localized fallback. Better still: detect the colour code prefix `|cff7f7f7f` on the only objective line — that's the unambiguous "this player isn't on the quest" marker.
 
 Triggers for recompute:
 - `QUEST_LOG_UPDATE` (local quest log change)
@@ -247,9 +317,9 @@ Triggers for recompute:
 - Periodic 3-second sweep as a safety net for events we miss
 
 Taint-safety:
-- Never do arithmetic on numeric fields in the returned `data`. Strings only.
-- Parsing `"3/5"` with `string.match` produces fresh local numbers, untainted.
-- No field-writes onto Blizzard frames (tooltip data isn't a frame, but the tracker row is — rules still apply).
+- Arithmetic on `numFulfilled` / `numRequired` is **probably** safe (probe evidence in §0.1), but worth a sanity test in a real Phase 1 build. If they turn out to be tainted, fall back to comparing `completed` only — we don't strictly need the integers for any of the four aggregate states.
+- No field-writes onto Blizzard frames (tooltip data isn't a frame, but the tracker row is — rules still apply, per `wow_blizzard_frame_field_write_taint.md`).
+- We don't need to constrain the query set to watched quests — the API works for any quest in the caller's log (§0.1). But for the indicator UI we only care about quests with tracker rows, so the query loop is naturally scoped to `C_QuestLog.GetNumQuestWatches()` anyway.
 
 ### 6.1 Broadcast channel (deferred, Phase 3 polish only)
 
@@ -579,4 +649,7 @@ If undertaken, the original broadcast design (AceComm, LibSerialize, HELLO / DEL
 - **Library choices?** → None for MVP (native API needs nothing extra). If Phase 3 broadcast is built later: AceComm-3.0, LibSerialize, possibly LibDeflate.
 - **Privacy default?** → N/A for native-only MVP (we only read, not broadcast). If Phase 3 broadcast is built: broadcast on by default, allow opt-out.
 - **Hot-toggle?** → No. `/reload` after module enable/disable. Simpler; niche operation.
-- **Taint posture for native API?** → Read line strings from `TooltipData`, parse with `string.match`. Never do arithmetic on numeric fields in the returned data — they may be "secret numbers" per the `SecretArguments` flag.
+- **Taint posture for native API?** → Walk `data.lines` by `type` (17/18/8); read `leftText`, `completed`, `guid`, and the `numFulfilled` / `numRequired` integers. Empirical evidence (§0.1) suggests the numerics are concrete, not "secret", but verify in a real Phase 1 build before relying on arithmetic. `SecretArguments = "AllowedWhenUntainted"` on this function appears to constrain *arguments*, not return values.
+- **Line-walk parser vs. string split?** → Line walk. Type-18 lines carry name + GUID; type-8 lines are pre-decomposed objective rows with `completed` / `numFulfilled` / `numRequired` already separate fields. No `string.match` on `"Name: 3/5"` required (and that format isn't even what the API returns — confirmed in §0.1).
+- **"Not on quest" detection?** → Check the objective row's `leftText` for the `|cff7f7f7f` grey colour code prefix, or against the literal "Not on quest" substring. Confirmed format from the probe (§0.1, quest 48641).
+- **Constrain queries to the watch list?** → Loop bound is the watch list (since only tracked quests have UI rows to indicate on), but no API-level restriction — the function works for any quest in the caller's log (§0.1).
