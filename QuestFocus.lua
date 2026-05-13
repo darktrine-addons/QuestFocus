@@ -1,6 +1,6 @@
 -- QuestFocus — bootstrap.
 -- Loads last per TOC; routes ADDON_LOADED / PLAYER_ENTERING_WORLD to the
--- ZoneFilter module and exposes slash commands that delegate into it.
+-- enabled modules and exposes slash commands that delegate into them.
 -- Future modules (PartySync, …) plug in alongside the same dispatcher.
 
 local addonName, ns = ...
@@ -14,6 +14,7 @@ boot:RegisterEvent("ADDON_LOADED")
 boot:RegisterEvent("PLAYER_ENTERING_WORLD")
 boot:SetScript("OnEvent", function(self, event, who)
     if event == "ADDON_LOADED" and who == addonName then
+        ns.Config.EnsureDB()
         if ZoneFilterEnabled() then
             ns.ZoneFilter.State.EnsureDB()
         end
@@ -25,14 +26,57 @@ boot:SetScript("OnEvent", function(self, event, who)
     end
 end)
 
+-- ============================================================
+-- Slash command dispatch
+-- ============================================================
+
+local function colourEnabled(enabled)
+    return enabled and "|cff44ff44enabled|r" or "|cffff7777disabled|r"
+end
+
+local function PrintModuleList()
+    print("|cffffcc00QuestFocus|r modules:")
+    for _, name in ipairs(ns.Config.GetKnownModules()) do
+        print(string.format("  %s: %s", name, colourEnabled(ns.Config.IsModuleEnabled(name))))
+    end
+    print("  |cffaaaaaaToggle with /qf module enable|disable <name>; /reload to apply.|r")
+end
+
+local function ToggleModule(name, enabled)
+    local known = false
+    for _, n in ipairs(ns.Config.GetKnownModules()) do
+        if n:lower() == name:lower() then name = n; known = true; break end
+    end
+    if not known then
+        print(string.format("|cffffcc00QuestFocus|r unknown module: %s", name))
+        return
+    end
+    ns.Config.SetModuleEnabled(name, enabled)
+    print(string.format("|cffffcc00QuestFocus|r %s set to %s. |cffaaaaaa/reload|r to apply.",
+        name, colourEnabled(enabled)))
+end
+
 SLASH_QUESTFOCUS1 = "/qf"
 SLASH_QUESTFOCUS2 = "/questfocus"
 SlashCmdList.QUESTFOCUS = function(msg)
     msg = (msg or ""):lower():match("^%s*(.-)%s*$")
-    if not ZoneFilterEnabled() then
-        print("|cffffcc00QuestFocus|r ZoneFilter module is disabled.")
+
+    -- module commands are available regardless of which modules are enabled
+    if msg == "module" or msg == "module list" then
+        PrintModuleList()
         return
     end
+    local enableName  = msg:match("^module enable (%S+)$")
+    local disableName = msg:match("^module disable (%S+)$")
+    if enableName  then ToggleModule(enableName,  true);  return end
+    if disableName then ToggleModule(disableName, false); return end
+
+    -- ZoneFilter commands require ZoneFilter enabled
+    if not ZoneFilterEnabled() then
+        print("|cffffcc00QuestFocus|r ZoneFilter module is disabled. |cffaaaaaa/qf module list|r")
+        return
+    end
+
     if msg == "filter" or msg == "" then
         ns.ZoneFilter.Apply.Filter(false)
     elseif msg == "filtershift" or msg == "promote" then
@@ -45,6 +89,6 @@ SlashCmdList.QUESTFOCUS = function(msg)
         print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
             tostring(active), restorable))
     else
-        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status")
+        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status | module list | module enable|disable <name>")
     end
 end
