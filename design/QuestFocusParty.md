@@ -89,6 +89,29 @@ A throwaway `Test/PartyProbe.lua` module captured `C_TooltipInfo.GetQuestPartyPr
 
 **Numeric fields appear concrete, not "secret".** Both `numFulfilled` and `numRequired` round-tripped through SavedVariables serialization as ordinary integers (e.g. `["numRequired"] = 1`). Doing arithmetic on them in addon code should be safe, contrary to the cautious assumption in §6.0. The `SecretArguments = "AllowedWhenUntainted"` flag on this function appears to apply to *arguments*, not return values. Implementation should still test arithmetic in a real session before relying on it, but the dump gives strong evidence that string-parsing is **not** required.
 
+### 0.2 BNet visibility gate (empirical, 2026-05-13)
+
+Follow-up validation of the slice-3 parser surfaced a hard constraint: `C_TooltipInfo.GetQuestPartyProgress` returns party data only when the queried partymate is **BNet-visible to the caller**. When the partymate has set themselves "appear offline" on Battle.net, the API behaves identically to the genuine not-on-quest case: a type-18 player header followed by a single `|cff7f7f7fNot on quest|r` row, **regardless of the partymate's actual quest log state**.
+
+Verified by toggling visibility on a same-realm party of two:
+- Visibility **on** → `state=in_progress` with the real objective text and counts
+- Visibility **off** → `state=not_on_quest` even though the partymate confirmed in their quest log that they had the quest accepted
+
+This applies to in-game Blizzard tooltips too — it's an API-level gate, not specific to the addon. Hovering a quest title in the world map quest log shows the same "Not on quest" line for the BNet-hidden partymate.
+
+Implications (more measured than initial framing):
+
+- **The addon cannot distinguish "BNet-hidden partymate on quest" from "partymate genuinely not on quest".** Both come back as grey "Not on quest" rows. The aggregate-state logic in §5.3 treats them identically — they count toward `members_without`.
+- **Practical impact is small.** Cooperative questing in modern retail is almost exclusively between BNet friends. PUGs and random open-world groups rarely care about each other's quest progress. The gate matches the audience.
+- **UX consequence for the "alone + shareable" orange state:** it *can* misfire when a partymate has the quest but is BNet-hidden. They reply "I already have it." Annoyance, not breakage.
+- **Documentation touchpoints** (track these forward):
+  - **README** — a one-paragraph note under "Party module" explaining the requirement, so users seeing missing data check BNet visibility before filing a bug.
+  - **Settings pane** (when wired in Phase 2, see slice 8) — a permanent informational line on the PartySync section.
+  - **Tooltips** (where it makes sense — e.g. the Alt-hover tooltip's footer when a party member's state is "not on quest", or a help line in the per-member section) — a quiet reminder that the data depends on BNet visibility.
+- **Phase 3 broadcast** can still bypass the gate (§11) and is a sensible eventual upgrade, but it's no longer urgent — the people who'd benefit most are exactly the people who wouldn't be co-op questing anyway.
+
+We don't have a clean disambiguator inside the data plane. `UnitInParty("partyN")` works for BNet-hidden partymates (they're still in your WoW party), but the API doesn't expose a "BNet-visible" predicate we could use to suppress the orange state on hidden members specifically. If one exists in `C_BattleNet` or `C_FriendList`, it's worth a follow-up check, but it's polish-level priority.
+
 ---
 
 ## 1. Overview
@@ -607,14 +630,16 @@ This now ships as the full feature, not a degraded MVP.
 - Real-time stress test the recompute path (3-second sweep cadence; tune if it costs CPU)
 - Raid support: aggregate-only display, hide per-member tooltip beyond N members
 
-### Phase 3: Broadcast protocol (optional, only if signal-gap motivates it)
+### Phase 3: Broadcast protocol (optional polish)
 
-Only revisit if Phase 1 reveals data we can't obtain natively:
-- Accept-recency timestamps (the user's original "I picked this up recently in a party" signal — not present in tooltip data)
-- Cross-addon coordination features (e.g. auto-share-on-pickup)
-- Faster-than-poll responsiveness
+Still optional. Possible drivers if Phase 1 / Phase 2 don't satisfy:
 
-If undertaken, the original broadcast design (AceComm, LibSerialize, HELLO / DELTA / ZONE / BYE messages, throttling) applies as written in §6.1.
+- **Accept-recency timestamps** — the user's original "I picked this up recently in a party" signal — not present in tooltip data.
+- **BNet visibility gating** (§0.2). Native API hides progress for BNet-hidden partymates. A custom addon-message channel bypasses that, but the use case is niche — most co-op questing already happens between BNet friends. Treat as "completeness for the unusual case" not "urgent gap fix".
+- **Cross-addon coordination features** (e.g. auto-share-on-pickup).
+- **Faster-than-poll responsiveness.**
+
+If undertaken, the original broadcast design (AceComm, LibSerialize, HELLO / DELTA / ZONE / BYE messages, throttling) applies as written in §6.1. The broadcast state and native-API state coexist: native is the fallback, broadcast supplements with higher-fidelity data where available.
 
 ### Phase 4: Maybe later
 

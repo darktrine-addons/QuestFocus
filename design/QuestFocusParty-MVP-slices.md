@@ -195,6 +195,24 @@ elegant, but no taint risk.
 
 ---
 
+### BNet visibility gate — documentation touchpoints (forward-tracked)
+
+`C_TooltipInfo.GetQuestPartyProgress` only returns real data for partymates
+who are BNet-visible to the caller. BNet-hidden partymates come back as
+"Not on quest" regardless of their actual state — see `QuestFocusParty.md`
+§0.2 for the empirical confirmation. We must surface this to users:
+
+- **Slice 7 (Alt-hover tooltip):** when a member's row says "not on quest",
+  consider a footer line "Note: requires BNet visibility" (or omit if too
+  chatty; design decision at slice time).
+- **Slice 8 (settings UI / module config):** a permanent informational
+  line in the PartySync section explaining the BNet requirement.
+- **Slice 9 (README):** one short paragraph under the "Party module"
+  section. Users should check BNet visibility before reporting missing
+  partymate data as a bug.
+
+---
+
 ## Slice 7 — Alt-hover detail tooltip
 
 **Goal:** Alt-hover the dot → focused tooltip with per-member breakdown,
