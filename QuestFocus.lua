@@ -8,6 +8,9 @@ local addonName, ns = ...
 local function ZoneFilterEnabled()
     return ns.Config and ns.Config.IsModuleEnabled("ZoneFilter")
 end
+local function PartySyncEnabled()
+    return ns.Config and ns.Config.IsModuleEnabled("PartySync")
+end
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("ADDON_LOADED")
@@ -22,6 +25,10 @@ boot:SetScript("OnEvent", function(self, event, who)
         if ZoneFilterEnabled() then
             ns.ZoneFilter.UI.MountTrackerButtons()
             ns.ZoneFilter.UI.MountQuestLogButtons()
+            ns.ZoneFilter.booted = true
+        end
+        if PartySyncEnabled() then
+            ns.PartySync.Boot()
         end
     end
 end)
@@ -34,10 +41,19 @@ local function colourEnabled(enabled)
     return enabled and "|cff44ff44enabled|r" or "|cffff7777disabled|r"
 end
 
+local function ModuleStatus(name)
+    local enabled = ns.Config.IsModuleEnabled(name)
+    if not enabled then return "|cffff7777disabled|r" end
+    local moduleNs = ns[name]
+    local booted = moduleNs and moduleNs.booted == true
+    if booted then return "|cff44ff44enabled (active)|r" end
+    return "|cffffff77enabled (pending boot)|r"
+end
+
 local function PrintModuleList()
     print("|cffffcc00QuestFocus|r modules:")
     for _, name in ipairs(ns.Config.GetKnownModules()) do
-        print(string.format("  %s: %s", name, colourEnabled(ns.Config.IsModuleEnabled(name))))
+        print(string.format("  %s: %s", name, ModuleStatus(name)))
     end
     print("  |cffaaaaaaToggle with /qf module enable|disable <name>; /reload to apply.|r")
 end

@@ -19,6 +19,9 @@ ZoneFilter\UI\Buttons.lua
 ZoneFilter\UI\ButtonTracker.lua
 ZoneFilter\UI\ButtonQuestLog.lua
 
+PartySync\Core\State.lua
+PartySync\Boot.lua
+
 QuestFocus.lua
 
 Test\PartyProbe.lua
