@@ -55,7 +55,7 @@ local function PrintModuleList()
     for _, name in ipairs(ns.Config.GetKnownModules()) do
         print(string.format("  %s: %s", name, ModuleStatus(name)))
     end
-    print("  |cffaaaaaaToggle with /qf module enable|disable <name>; /reload to apply.|r")
+    print("  |cffaaaaaaToggle with /qf module enable|disable <name>; PartySync applies live, ZoneFilter needs /reload.|r")
 end
 
 local function ToggleModule(name, enabled)
@@ -68,8 +68,18 @@ local function ToggleModule(name, enabled)
         return
     end
     ns.Config.SetModuleEnabled(name, enabled)
-    print(string.format("|cffffcc00QuestFocus|r %s set to %s. |cffaaaaaa/reload|r to apply.",
-        name, colourEnabled(enabled)))
+
+    -- PartySync supports runtime hot-toggle. ZoneFilter still needs
+    -- /reload (its tracker buttons can't cleanly tear themselves down
+    -- without one).
+    if name == "PartySync" and ns.PartySync and ns.PartySync.SetActive then
+        ns.PartySync.SetActive(enabled)
+        print(string.format("|cffffcc00QuestFocus|r %s set to %s. Applied immediately.",
+            name, colourEnabled(enabled)))
+    else
+        print(string.format("|cffffcc00QuestFocus|r %s set to %s. |cffaaaaaa/reload|r to apply.",
+            name, colourEnabled(enabled)))
+    end
 end
 
 SLASH_QUESTFOCUS1 = "/qf"
@@ -86,6 +96,22 @@ SlashCmdList.QUESTFOCUS = function(msg)
     local disableName = msg:match("^module disable (%S+)$")
     if enableName  then ToggleModule(enableName,  true);  return end
     if disableName then ToggleModule(disableName, false); return end
+
+    -- PartySync utility sub-commands
+    if msg == "party debug" then
+        if ns.PartySync then
+            ns.PartySync.debug = not ns.PartySync.debug
+            print(string.format("|cffffcc00QuestFocus|r party debug %s",
+                ns.PartySync.debug and "|cff44ff44ON|r" or "|cffff7777OFF|r"))
+        else
+            print("|cffffcc00QuestFocus|r PartySync module not loaded.")
+        end
+        return
+    end
+    if msg == "party broadcast on" or msg == "party broadcast off" then
+        print("|cffffcc00QuestFocus|r broadcast is not implemented in MVP (Phase 3 future work).")
+        return
+    end
 
     -- ZoneFilter commands require ZoneFilter enabled
     if not ZoneFilterEnabled() then
@@ -105,6 +131,6 @@ SlashCmdList.QUESTFOCUS = function(msg)
         print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
             tostring(active), restorable))
     else
-        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status | module list | module enable|disable <name>")
+        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status | module list | module enable|disable <name> | party debug | party broadcast on|off")
     end
 end

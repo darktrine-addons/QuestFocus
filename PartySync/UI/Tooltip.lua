@@ -157,6 +157,7 @@ local function HideIfOwn(indicator)
 end
 
 local function OnEnter(self)
+    if ns.PartySync.active == false then return end
     hovered = self
     if IsAltKeyDown() then ShowFor(self) end
 end
@@ -164,6 +165,14 @@ end
 local function OnLeave(self)
     if hovered == self then hovered = nil end
     HideIfOwn(self)
+end
+
+-- Exposed for SetActive(false): dismiss any tooltip we currently own
+-- and forget the hovered indicator. No-op when the GameTooltip belongs
+-- to some other addon.
+function Tooltip.Hide()
+    if hovered then HideIfOwn(hovered) end
+    hovered = nil
 end
 
 -- Attach (or update) the OnEnter/OnLeave handlers to an indicator and

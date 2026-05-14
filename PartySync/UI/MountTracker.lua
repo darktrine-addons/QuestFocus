@@ -69,7 +69,13 @@ local function ReleaseAll()
     end
 end
 
+-- Per-quest cache of the last computed aggregate state. Used both to
+-- emit debug diffs and to make repeated Refresh calls cheap-ish (we
+-- still recompute, but the print is suppressed on no-change).
+local lastState = {}
+
 local function Refresh()
+    if ns.PartySync.active == false then return end
     local Indicator = ns.PartySync.UI.Indicator
     local Aggregate = ns.PartySync.Aggregate
     if not Indicator or not Aggregate then return end
@@ -77,6 +83,7 @@ local function Refresh()
     -- Solo → release everything and bail.
     if not IsInGroup() then
         ReleaseAll()
+        wipe(lastState)
         return
     end
 
@@ -87,6 +94,11 @@ local function Refresh()
         if not visible[qid] then
             Indicator.Release(f)
             indicators[qid] = nil
+            if ns.PartySync.debug and lastState[qid] ~= nil then
+                print(string.format("|cffaaaaaaQF debug|r qid=%d released (was %s)",
+                    qid, tostring(lastState[qid])))
+            end
+            lastState[qid] = nil
         end
     end
 
@@ -104,7 +116,14 @@ local function Refresh()
         -- Visual polish (anchor to title text's right edge) deferred to
         -- slice 8 once we've validated positioning in practice.
         f:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
-        Indicator.SetState(f, Aggregate.Compute(qid))
+        local state = Aggregate.Compute(qid)
+        if ns.PartySync.debug and lastState[qid] ~= state then
+            local title = (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qid)) or "?"
+            print(string.format("|cffaaaaaaQF debug|r qid=%d (%s): %s -> %s",
+                qid, title, tostring(lastState[qid]), tostring(state)))
+        end
+        lastState[qid] = state
+        Indicator.SetState(f, state)
         if Tooltip then Tooltip.Attach(f, qid) end
     end
 end
@@ -167,6 +186,10 @@ function MountTracker.Mount()
         end
     end)
 end
+
+-- Exposed for runtime hot-toggle via PartySync.SetActive.
+function MountTracker.Refresh() Refresh() end
+function MountTracker.ReleaseAllIndicators() ReleaseAll(); wipe(lastState) end
 
 -- ============================================================
 -- Test slash commands (removed in slice 10).
