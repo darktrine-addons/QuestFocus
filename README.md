@@ -16,6 +16,14 @@ Narrow the set of tracked quests to ones relevant to your current zone, with one
 
 When you press 🔍 while in the yellow state, the interim quests are folded into the snapshot before re-narrowing. That way they're preserved if you later revert. The indicator returns to green after re-apply.
 
+## Auto-promote while filter is active
+
+When a new quest enters your log while the filter is active, QuestFocus checks whether it's zone-relevant. If yes, it's added to the watch list immediately, no click needed.
+
+This closes a gap with Blizzard's `autoQuestWatch`: event quests like *Void Assaults: Eversong Woods* enter your log on first progress without auto-tracking, so they'd otherwise stay invisible behind a filter. Auto-promote treats them the same way `autoQuestWatch` treats normally-accepted quests.
+
+Caveat: if you manually un-track an auto-promoted quest, it stays un-tracked — we only promote *new* arrivals, not "re-promote anything zone-relevant on every quest-log update."
+
 ## Revert semantics (merge)
 
 `revert_target = snapshot ∪ quests_added_since`
