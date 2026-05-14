@@ -24,6 +24,7 @@ PartySync\Core\State.lua
 PartySync\Core\Fetch.lua
 PartySync\Core\Aggregate.lua
 PartySync\UI\Indicator.lua
+PartySync\UI\MountTracker.lua
 PartySync\Boot.lua
 
 QuestFocus.lua
