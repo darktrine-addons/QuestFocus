@@ -74,7 +74,7 @@ local function ToggleModule(name, enabled)
     -- without one).
     if name == "PartySync" and ns.PartySync and ns.PartySync.SetActive then
         ns.PartySync.SetActive(enabled)
-        print(string.format("|cffffcc00QuestFocus|r %s set to %s. Applied immediately.",
+        print(string.format("|cffffcc00QuestFocus|r %s set to %s.",
             name, colourEnabled(enabled)))
     else
         print(string.format("|cffffcc00QuestFocus|r %s set to %s. |cffaaaaaa/reload|r to apply.",
