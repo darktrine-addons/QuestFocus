@@ -91,6 +91,7 @@ local function Refresh()
     end
 
     -- Mount or refresh indicators for currently visible quests.
+    local Tooltip = ns.PartySync.UI and ns.PartySync.UI.Tooltip
     for qid, block in pairs(visible) do
         local f = indicators[qid]
         if not f then
@@ -104,6 +105,7 @@ local function Refresh()
         -- slice 8 once we've validated positioning in practice.
         f:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
         Indicator.SetState(f, Aggregate.Compute(qid))
+        if Tooltip then Tooltip.Attach(f, qid) end
     end
 end
 

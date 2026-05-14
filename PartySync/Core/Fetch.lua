@@ -81,6 +81,35 @@ function Fetch.GetPartyProgress(questID)
     return result
 end
 
+-- Caller's own progress on a quest. Returns the same shape as
+-- GetPartyProgress entries — { name, guid, objectives = {...} } — so the
+-- tooltip rendering code can treat self and partymates uniformly.
+--
+-- Reads C_QuestLog.GetQuestObjectives directly (local data, not subject
+-- to the BNet visibility gate that affects partymate data).
+function Fetch.GetSelfProgress(questID)
+    if not questID then return nil end
+    if not C_QuestLog or not C_QuestLog.GetQuestObjectives then return nil end
+    local objectives = C_QuestLog.GetQuestObjectives(questID)
+    if not objectives then return nil end
+
+    local result = {
+        name       = UnitName("player"),
+        guid       = UnitGUID("player"),
+        objectives = {},
+    }
+    for _, obj in ipairs(objectives) do
+        result.objectives[#result.objectives+1] = {
+            text         = obj.text,
+            completed    = obj.finished,
+            numFulfilled = obj.numFulfilled,
+            numRequired  = obj.numRequired,
+            notOnQuest   = false,
+        }
+    end
+    return result
+end
+
 -- Per-player state derivation: roll up that player's objectives into one of
 --   "complete"     — all objectives done (ready-to-turn-in for them)
 --   "in_progress"  — has the quest, some progress / no progress
