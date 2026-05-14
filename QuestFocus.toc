@@ -2,7 +2,7 @@
 ## Category: Quests
 ## Title: QuestFocus
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
-## Notes: Narrow tracked quests to the current zone, with one-click revert.
+## Notes: Zone-filter your tracked quests, and see party progress on each tracker row at a glance.
 ## Author: artherion77
 ## Version: @project-version@
 ## Category-enUS: Quests
