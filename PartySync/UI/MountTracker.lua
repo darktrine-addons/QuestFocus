@@ -1,19 +1,26 @@
 -- PartySync/UI/MountTracker.lua — anchor indicator dots to live quest
 -- tracker rows, keyed on questID.
 --
--- Approach (per slice plan, option "hook + walk"):
---   1. hooksecurefunc(QuestObjectiveTracker, "Update", refresh) — passive
---      observer that runs after Blizzard finishes rebuilding usedBlocks.
+-- Covers Blizzard's quest-like tracker modules: QuestObjectiveTracker
+-- (regular quests) and CampaignQuestObjectiveTracker (campaign quests).
+-- Both share the same usedBlocks shape and the same Update mixin method,
+-- so the implementation walks a list of module names and treats them
+-- uniformly.
+--
+-- Approach:
+--   1. hooksecurefunc(<module>, "Update", refresh) on each tracker module
+--      that's currently loaded — passive observer runs after Blizzard
+--      finishes rebuilding usedBlocks.
 --   2. Event registrations as a safety net (events sometimes fire before
 --      the tracker's own Update; we use C_Timer.After(0, refresh) to wait
 --      one frame so usedBlocks is current when we walk it).
 --   3. 3-second ticker (only while in a party) as the ultimate safety net.
+--   4. Retry loop for ~30s in case a tracker module loads late.
 --
 -- Taint posture (per memory `wow_blizzard_frame_field_write_taint`):
 --   - We never write a custom field onto a tracker block.
 --   - Indicator frames are addon-owned (`CreateFrame` parented to the block
 --     for visibility-inheritance only); release re-parents to UIParent.
---   - `block.id` / `block.HeaderText` are READ, never written.
 --   - The side-table `indicators[questID] = frame` lives in this file's
 --     upvalues, not on Blizzard objects.
 
@@ -23,17 +30,23 @@ ns.PartySync.UI = ns.PartySync.UI or {}
 local MountTracker = {}
 ns.PartySync.UI.MountTracker = MountTracker
 
-local indicators = {}   -- { [questID] = indicatorFrame }
-local mounted    = false
+local indicators     = {}     -- { [questID] = indicatorFrame }
+local hookedModules  = {}     -- { [moduleName] = true }
+local eventsWired    = false
 
-local function GetQuestModule()
-    return QuestObjectiveTracker
-end
+-- Tracker modules we attach to. World quests, scenarios, achievements,
+-- bonus objectives etc. are excluded — they don't have the party-progress
+-- semantics the indicator is conveying.
+local TRACKER_MODULES = {
+    "QuestObjectiveTracker",
+    "CampaignQuestObjectiveTracker",
+}
 
--- Walks the live tracker. Returns { [questID] = block }.
+-- Walks the live trackers. Returns { [questID] = block } flattened across
+-- every available tracker module.
 --
 -- Schema (TWW Midnight, Interface 120005, confirmed by in-game probe
--- 2026-05-14): QuestObjectiveTracker.usedBlocks is two-level:
+-- 2026-05-14): `usedBlocks` is two-level:
 --
 --   usedBlocks = {
 --       [templateName] = {       -- e.g. "ObjectiveTrackerQuestPOIBlockTemplate"
@@ -43,17 +56,20 @@ end
 --       ...
 --   }
 --
--- We flatten across all templates. The questID is the inner key directly,
--- so no block.id heuristic is needed.
+-- The questID is the inner key directly. The CampaignQuestObjectiveTracker
+-- uses the same shape, just keyed by campaign quest IDs.
 local function VisibleQuestBlocks()
     local result = {}
-    local module = GetQuestModule()
-    if not module or not module.usedBlocks then return result end
-    for _, inner in pairs(module.usedBlocks) do
-        if type(inner) == "table" then
-            for qid, block in pairs(inner) do
-                if type(qid) == "number" and block then
-                    result[qid] = block
+    for _, name in ipairs(TRACKER_MODULES) do
+        local module = _G[name]
+        if module and module.usedBlocks then
+            for _, inner in pairs(module.usedBlocks) do
+                if type(inner) == "table" then
+                    for qid, block in pairs(inner) do
+                        if type(qid) == "number" and block then
+                            result[qid] = block
+                        end
+                    end
                 end
             end
         end
@@ -69,9 +85,8 @@ local function ReleaseAll()
     end
 end
 
--- Per-quest cache of the last computed aggregate state. Used both to
--- emit debug diffs and to make repeated Refresh calls cheap-ish (we
--- still recompute, but the print is suppressed on no-change).
+-- Per-quest cache of the last computed aggregate state. Used to emit
+-- /qf party debug diffs without printing on every Refresh tick.
 local lastState = {}
 
 local function Refresh()
@@ -103,7 +118,6 @@ local function Refresh()
     end
 
     -- Mount or refresh indicators for currently visible quests.
-    local Tooltip = ns.PartySync.UI and ns.PartySync.UI.Tooltip
     for qid, block in pairs(visible) do
         local f = indicators[qid]
         if not f then
@@ -112,9 +126,6 @@ local function Refresh()
         end
         f:SetParent(block)
         f:ClearAllPoints()
-        -- Slice-6 anchor: top-right corner of the block, slight inset.
-        -- Visual polish (anchor to title text's right edge) deferred to
-        -- slice 8 once we've validated positioning in practice.
         f:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
         local state = Aggregate.Compute(qid)
         if ns.PartySync.debug and lastState[qid] ~= state then
@@ -124,7 +135,6 @@ local function Refresh()
         end
         lastState[qid] = state
         Indicator.SetState(f, state)
-        if Tooltip then Tooltip.Attach(f, qid) end
     end
 end
 
@@ -141,13 +151,9 @@ local function DeferredRefresh()
     end)
 end
 
-local function WireHooksAndEvents()
-    local module = GetQuestModule()
-    if not module or not module.Update then return false end
-
-    -- Passive observer: runs AFTER Blizzard's Update finishes.
-    -- Debounced through DeferredRefresh in case Update fires in bursts.
-    hooksecurefunc(module, "Update", DeferredRefresh)
+local function WireEvents()
+    if eventsWired then return end
+    eventsWired = true
 
     local watch = CreateFrame("Frame")
     watch:RegisterEvent("QUEST_LOG_UPDATE")          -- own quest log change
@@ -160,16 +166,32 @@ local function WireHooksAndEvents()
     C_Timer.NewTicker(3, function()
         if IsInGroup() then DeferredRefresh() end
     end)
+end
 
+-- Hook a single tracker module if it's available and not already hooked.
+-- Returns true if (already or newly) hooked.
+local function TryHookModule(name)
+    if hookedModules[name] then return true end
+    local module = _G[name]
+    if not module or not module.Update then return false end
+    hooksecurefunc(module, "Update", DeferredRefresh)
+    hookedModules[name] = true
     return true
 end
 
--- Public: try to set up the hooks. Retries every second up to ~30s in
--- case the tracker module isn't ready yet at PLAYER_ENTERING_WORLD.
+local function HookAllAvailable()
+    local allDone = true
+    for _, name in ipairs(TRACKER_MODULES) do
+        if not TryHookModule(name) then allDone = false end
+    end
+    return allDone
+end
+
+-- Public: set up events once + hook every tracker module that's available
+-- now. Retries every second for ~30s in case any module loads late.
 function MountTracker.Mount()
-    if mounted then return end
-    if WireHooksAndEvents() then
-        mounted = true
+    WireEvents()
+    if HookAllAvailable() then
         Refresh()
         return
     end
@@ -177,12 +199,9 @@ function MountTracker.Mount()
     local ticker
     ticker = C_Timer.NewTicker(1, function()
         attempts = attempts + 1
-        if WireHooksAndEvents() then
-            mounted = true
+        if HookAllAvailable() or attempts > 30 then
             ticker:Cancel()
             Refresh()
-        elseif attempts > 30 then
-            ticker:Cancel()
         end
     end)
 end
@@ -191,66 +210,19 @@ end
 function MountTracker.Refresh() Refresh() end
 function MountTracker.ReleaseAllIndicators() ReleaseAll(); wipe(lastState) end
 
--- ============================================================
--- Test slash commands (removed in slice 10).
--- ============================================================
-
-SLASH_QFTRACKERDEBUG1 = "/qftrackerdebug"
-SlashCmdList.QFTRACKERDEBUG = function()
-    local module = GetQuestModule()
-    local visible = VisibleQuestBlocks()
-    local nVisible, nIndicators = 0, 0
-    for _ in pairs(visible)    do nVisible    = nVisible    + 1 end
-    for _ in pairs(indicators) do nIndicators = nIndicators + 1 end
-    print(string.format("|cffffcc00QF tracker|r mounted=%s visible=%d indicators=%d inGroup=%s module=%s",
-        tostring(mounted), nVisible, nIndicators, tostring(IsInGroup()), module and "yes" or "NIL"))
-    if nVisible > 0 then
-        print("|cffaaaaaa  block enumeration (qid / HeaderText? / WxH / shown):|r")
-        local n = 0
-        for qid, block in pairs(visible) do
-            n = n + 1
-            if n > 5 then print("|cffaaaaaa  …more blocks omitted|r"); break end
-            local ht = block.HeaderText and "yes" or "no"
-            local w  = block.GetWidth  and math.floor(block:GetWidth())  or "?"
-            local h  = block.GetHeight and math.floor(block:GetHeight()) or "?"
-            local shown = block.IsShown and block:IsShown() or "?"
-            print(string.format("    qid=%d / HT=%s / %sx%s / shown=%s",
-                qid, ht, tostring(w), tostring(h), tostring(shown)))
+-- Reverse lookup used by the Tooltip hook: given a frame (the
+-- GameTooltip's current owner, typically a tracker row block or one of
+-- its children), return the questID we've mounted an indicator for on
+-- that block. Walks up the parent chain so child-of-block owners work
+-- too. nil if no match — caller treats nil as "not our tooltip".
+function MountTracker.GetQuestIDForBlock(frame)
+    while frame do
+        for qid, indicator in pairs(indicators) do
+            if indicator:GetParent() == frame then return qid end
         end
+        local parent = frame.GetParent and frame:GetParent()
+        if parent == frame then return nil end  -- guard against loops
+        frame = parent
     end
-end
-
--- Force-attach a bright debug widget to every tracker block — works
--- regardless of party state. If these aren't visible, the attachment
--- mechanism itself is broken (anchor, parent, size, or strata). If they
--- ARE visible solo but the real dots don't show in party, the bug is in
--- Aggregate.Compute.
-local testWidgets = {}
-SLASH_QFTRACKERTEST1 = "/qftrackertest"
-SlashCmdList.QFTRACKERTEST = function()
-    for _, w in ipairs(testWidgets) do w:Hide(); w:SetParent(UIParent) end
-    wipe(testWidgets)
-
-    local visible = VisibleQuestBlocks()
-    local n = 0
-    for _, block in pairs(visible) do
-        local w = CreateFrame("Frame", nil, block)
-        w:SetSize(12, 12)
-        w:SetFrameStrata("DIALOG")  -- well above any tracker artwork
-        local t = w:CreateTexture(nil, "OVERLAY")
-        t:SetAllPoints()
-        t:SetColorTexture(1, 0, 1, 1)  -- magenta — impossible to miss
-        w:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
-        w:Show()
-        testWidgets[#testWidgets+1] = w
-        n = n + 1
-    end
-    print(string.format("|cffffcc00QF tracker test|r attached %d magenta widgets. /qftrackertestclear to remove.", n))
-end
-
-SLASH_QFTRACKERTESTCLEAR1 = "/qftrackertestclear"
-SlashCmdList.QFTRACKERTESTCLEAR = function()
-    for _, w in ipairs(testWidgets) do w:Hide(); w:SetParent(UIParent) end
-    wipe(testWidgets)
-    print("|cffffcc00QF tracker test|r cleared")
+    return nil
 end

@@ -44,6 +44,11 @@ end
 function Indicator.Acquire()
     local f = table.remove(pool)
     if not f then f = NewFrame() end
+    -- Click-through: dots must not intercept hover from the underlying
+    -- tracker block, otherwise we'd suppress the row's normal tooltip
+    -- (which we hook to append our party section). EnableMouse persists
+    -- across reuse, so we set this explicitly on every Acquire.
+    f:EnableMouse(false)
     f:Show()
     return f
 end
@@ -69,37 +74,4 @@ end
 
 function Indicator.PoolSize()
     return #pool
-end
-
--- ============================================================
--- Test slash commands — removed in slice 10 alongside Test/.
--- ============================================================
-
-local testInstances = {}
-
-local function ReleaseAllTest()
-    for _, f in ipairs(testInstances) do
-        Indicator.Release(f)
-    end
-    wipe(testInstances)
-end
-
-SLASH_QFWIDGETTEST1 = "/qfwidgettest"
-SlashCmdList.QFWIDGETTEST = function()
-    ReleaseAllTest()
-    local states = { "aligned", "mixed", "ready_turn_in", "alone_shareable" }
-    for i, state in ipairs(states) do
-        local f = Indicator.Acquire()
-        f:SetPoint("CENTER", UIParent, "CENTER", -45 + (i - 1) * 30, 0)
-        Indicator.SetState(f, state)
-        testInstances[#testInstances+1] = f
-    end
-    print(string.format("|cffffcc00QF widget test|r placed %d indicators (G/Y/B/O); pool free=%d after acquire.",
-        #testInstances, Indicator.PoolSize()))
-end
-
-SLASH_QFWIDGETCLEAR1 = "/qfwidgetclear"
-SlashCmdList.QFWIDGETCLEAR = function()
-    ReleaseAllTest()
-    print(string.format("|cffffcc00QF widget test|r cleared; pool free=%d.", Indicator.PoolSize()))
 end

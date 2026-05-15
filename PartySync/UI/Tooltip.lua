@@ -1,31 +1,35 @@
--- PartySync/UI/Tooltip.lua — Alt-hover detail tooltip on indicator dots.
+-- PartySync/UI/Tooltip.lua — append party-state lines to Blizzard's own
+-- objective-tracker row tooltips.
 --
--- Layout (per design §4.3):
+-- We don't show our own tooltip. Instead we hook GameTooltip:OnShow,
+-- detect whether the tooltip's owner is one of our tracked tracker
+-- blocks (via MountTracker.GetQuestIDForBlock), and append our party
+-- section to the existing tooltip. The indicator dots themselves are
+-- click-through (EnableMouse(false)) so hovering them doesn't suppress
+-- the row's underlying tooltip.
 --
---   Quest Title
---   ──────────────────────────────────
+-- Taint posture:
+--   - GameTooltip:HookScript("OnShow", ...) is the supported addon hook
+--     mechanism. It does NOT write a custom field onto the Blizzard
+--     frame; it registers an additional handler.
+--   - GameTooltip:AddLine / :AddDoubleLine are public APIs.
+--   - No custom field writes on Blizzard frames anywhere in this file.
+--
+-- Layout (appended after Blizzard's lines, only when in party):
+--
+--   [Blizzard's quest description + objective lines]
+--
 --   Party state:
---     You                In progress (2/3)
---     PlayerTwo          Ready to turn in
---     PlayerThree        Not on quest
---     PlayerFour         In progress (1/3)
---   Hidden / not-on-quest rows depend on BNet visibility.   (footer; conditional)
---
--- Member names in class colour, state text in state colour. "You" is
--- always first; other members sorted complete → in_progress → not_on_quest.
---
--- Trigger: holding Alt while hovering an indicator. Dismissed by
--- releasing Alt OR moving off the indicator.
+--     You           In progress (2/3)
+--     PlayerTwo     Ready to turn in
+--     PlayerThree   Not on quest
+--   Hidden / not-on-quest rows depend on BNet visibility.   (footer when relevant)
 
 local addonName, ns = ...
 ns.PartySync    = ns.PartySync    or {}
 ns.PartySync.UI = ns.PartySync.UI or {}
 local Tooltip = {}
 ns.PartySync.UI.Tooltip = Tooltip
-
--- Track the currently-hovered indicator so the MODIFIER_STATE_CHANGED
--- handler can resolve "the user just pressed Alt while hovering" → show.
-local hovered = nil
 
 local STATE_RANK = {
     complete     = 1,
@@ -43,16 +47,16 @@ local function ClassColor(class)
 end
 
 local function StateColor(state)
-    if state == "complete"     then return 0.40, 1.00, 0.40 end  -- green
-    if state == "in_progress"  then return 1.00, 1.00, 1.00 end  -- white
-    if state == "not_on_quest" then return 0.55, 0.55, 0.55 end  -- grey
+    if state == "complete"     then return 0.40, 1.00, 0.40 end
+    if state == "in_progress"  then return 1.00, 1.00, 1.00 end
+    if state == "not_on_quest" then return 0.55, 0.55, 0.55 end
     return 0.55, 0.55, 0.55
 end
 
 local function FormatState(state, player)
-    if state == "complete"    then return "Ready to turn in" end
+    if state == "complete"     then return "Ready to turn in" end
     if state == "not_on_quest" then return "Not on quest"     end
-    if state == "in_progress" then
+    if state == "in_progress"  then
         local done, total = 0, 0
         if player and player.objectives then
             for _, obj in ipairs(player.objectives) do
@@ -60,16 +64,12 @@ local function FormatState(state, player)
                 if obj.completed then done = done + 1 end
             end
         end
-        if total > 0 then
-            return string.format("In progress (%d/%d)", done, total)
-        end
+        if total > 0 then return string.format("In progress (%d/%d)", done, total) end
         return "In progress"
     end
     return "—"
 end
 
--- Find a class string for a GUID by walking the group roster. Cheap
--- enough at hover time (we don't do this on every tracker update).
 local function ClassForGUID(targetGUID)
     if not targetGUID then return nil end
     if UnitGUID("player") == targetGUID then
@@ -86,33 +86,33 @@ local function ClassForGUID(targetGUID)
     end
 end
 
-local function AppendMemberRow(name, class, state, player)
+local function AppendMemberRow(tooltip, name, class, state, player)
     local cr, cg, cb = ClassColor(class)
     local sr, sg, sb = StateColor(state)
-    GameTooltip:AddDoubleLine(
+    tooltip:AddDoubleLine(
         name or "?",
         FormatState(state, player),
         cr, cg, cb,
         sr, sg, sb)
 end
 
-function Tooltip.Show(owner, questID)
-    if not questID then return end
+-- Append our party section to `tooltip` for the given questID. No-op
+-- when solo or PartySync inactive.
+function Tooltip.AppendForQuest(tooltip, questID)
+    if ns.PartySync.active == false then return end
+    if not questID or not IsInGroup() then return end
     local Fetch = ns.PartySync.Fetch
     if not Fetch then return end
 
-    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    local title = (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questID)) or "?"
-    GameTooltip:SetText(title, 1, 0.82, 0, 1)
-
-    GameTooltip:AddLine("Party state:", 0.82, 0.82, 0.82)
+    tooltip:AddLine(" ")
+    tooltip:AddLine("Party state:", 0.82, 0.82, 0.82)
 
     -- "You" row first
     local selfData = Fetch.GetSelfProgress(questID)
     local anyNotOnQuest = false
     if selfData then
         local state = Fetch.GetPlayerStateForQuest(selfData)
-        AppendMemberRow("You", select(2, UnitClass("player")), state, selfData)
+        AppendMemberRow(tooltip, "You", select(2, UnitClass("player")), state, selfData)
     end
 
     -- Partymate rows, sorted by state then name
@@ -134,119 +134,30 @@ function Tooltip.Show(owner, questID)
         return (a.name or "") < (b.name or "")
     end)
     for _, row in ipairs(rows) do
-        AppendMemberRow(row.name, ClassForGUID(row.guid), row.state, row.player)
+        AppendMemberRow(tooltip, row.name, ClassForGUID(row.guid), row.state, row.player)
     end
 
-    -- BNet visibility footer (only when relevant — keeps clean rows clean)
+    -- BNet visibility footer (only when relevant)
     if anyNotOnQuest then
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Hidden / not-on-quest rows depend on BNet visibility.",
+        tooltip:AddLine(" ")
+        tooltip:AddLine("Hidden / not-on-quest rows depend on BNet visibility.",
             0.55, 0.55, 0.55, true)
     end
 
-    GameTooltip:Show()
+    tooltip:Show()  -- recompute size after the new lines
 end
 
-local function ShowFor(indicator)
-    if not indicator or not indicator.qfQuestID then return end
-    Tooltip.Show(indicator, indicator.qfQuestID)
-end
-
-local function HideIfOwn(indicator)
-    if GameTooltip:GetOwner() == indicator then GameTooltip:Hide() end
-end
-
-local function OnEnter(self)
-    if ns.PartySync.active == false then return end
-    hovered = self
-    if IsAltKeyDown() then ShowFor(self) end
-end
-
-local function OnLeave(self)
-    if hovered == self then hovered = nil end
-    HideIfOwn(self)
-end
-
--- Exposed for SetActive(false): dismiss any tooltip we currently own
--- and forget the hovered indicator. No-op when the GameTooltip belongs
--- to some other addon.
-function Tooltip.Hide()
-    if hovered then HideIfOwn(hovered) end
-    hovered = nil
-end
-
--- Attach (or update) the OnEnter/OnLeave handlers to an indicator and
--- record the questID it currently represents. Idempotent: only sets
--- handlers once per frame; updates the questID every call.
-function Tooltip.Attach(indicator, questID)
-    if not indicator then return end
-    indicator.qfQuestID = questID
-    if indicator.qfTooltipAttached then return end
-    indicator.qfTooltipAttached = true
-    indicator:EnableMouse(true)
-    indicator:SetScript("OnEnter", OnEnter)
-    indicator:SetScript("OnLeave", OnLeave)
-end
-
--- Module-level: show/hide based on Alt-key transitions while hovered.
-local modWatch = CreateFrame("Frame")
-modWatch:RegisterEvent("MODIFIER_STATE_CHANGED")
-modWatch:SetScript("OnEvent", function(self, event, key, state)
-    if key ~= "LALT" and key ~= "RALT" then return end
-    if not hovered then return end
-    if state == 1 then
-        ShowFor(hovered)
-    else
-        HideIfOwn(hovered)
+-- Hook: whenever GameTooltip becomes visible, check whether its owner is
+-- one of our tracked tracker blocks. If so, append the party section.
+-- Early-return for any other tooltip use, so the overhead is one
+-- side-table walk per tooltip show.
+GameTooltip:HookScript("OnShow", function(self)
+    local MountTracker = ns.PartySync.UI and ns.PartySync.UI.MountTracker
+    if not MountTracker or not MountTracker.GetQuestIDForBlock then return end
+    local owner = self:GetOwner()
+    if not owner then return end
+    local qid = MountTracker.GetQuestIDForBlock(owner)
+    if qid then
+        Tooltip.AppendForQuest(self, qid)
     end
 end)
-
--- ============================================================
--- Test slash command (removed in slice 10).
--- /qftooltiptest [questID] — places a free-standing green dot at
--- screen-centre and attaches the tooltip with the given (or first
--- watched) questID. Works solo — the "You" row renders from local
--- C_QuestLog data; partymate rows only appear if you're actually in a
--- party. Use to validate the self-row layout / colours / formatting.
--- ============================================================
-
-local testFrame
-SLASH_QFTOOLTIPTEST1 = "/qftooltiptest"
-SlashCmdList.QFTOOLTIPTEST = function(msg)
-    local arg = (msg or ""):match("^%s*(%S+)%s*$")
-    local qid = tonumber(arg)
-    if not qid then
-        if (C_QuestLog.GetNumQuestWatches() or 0) == 0 then
-            print("|cffffcc00QF tooltip test|r no watched quests; pass /qftooltiptest <questID>")
-            return
-        end
-        qid = C_QuestLog.GetQuestIDForQuestWatchIndex(1)
-    end
-    if not qid then
-        print("|cffffcc00QF tooltip test|r could not resolve quest ID")
-        return
-    end
-
-    local Indicator = ns.PartySync.UI.Indicator
-    if testFrame then
-        Indicator.Release(testFrame)
-        testFrame = nil
-    end
-    testFrame = Indicator.Acquire()
-    testFrame:SetSize(14, 14)  -- larger than production so it's easy to hover
-    testFrame:ClearAllPoints()
-    testFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
-    Indicator.SetState(testFrame, "aligned")  -- green
-    Tooltip.Attach(testFrame, qid)
-    print(string.format("|cffffcc00QF tooltip test|r dot placed above screen-centre, qid=%d. Hold |cffffff88Alt|r and hover it.",
-        qid))
-end
-
-SLASH_QFTOOLTIPCLEAR1 = "/qftooltipclear"
-SlashCmdList.QFTOOLTIPCLEAR = function()
-    if testFrame then
-        ns.PartySync.UI.Indicator.Release(testFrame)
-        testFrame = nil
-        print("|cffffcc00QF tooltip test|r cleared")
-    end
-end

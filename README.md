@@ -71,9 +71,11 @@ When you're in a party, every tracked quest in the objective tracker gets a smal
 - 🟠 **Orange** — *shareable*: only you have it, and at least one partymate is in the same zone (share the quest)
 - *no dot* — no actionable group state, or you're solo
 
-### Alt-hover for detail
+### Per-member detail in the row tooltip
 
-Hold **Alt** while hovering a dot to see the per-member breakdown: each partymate's name in their class colour, with their state on the right (`Ready to turn in` / `In progress (K/N)` / `Not on quest`). "You" comes first, then partymates sorted by state. Release Alt or move off the dot to dismiss.
+Hover any tracked quest row as you normally would — Blizzard's tooltip appears with the quest description and objectives, and PartySync **appends** a "Party state:" section below: each member's name in their class colour, with their state on the right (`Ready to turn in` / `In progress (K/N)` / `Not on quest`). "You" comes first, then partymates sorted by state.
+
+The indicator dots themselves are click-through — they're visual signals only, not separate hover targets.
 
 ### BNet visibility caveat
 
@@ -123,7 +125,7 @@ Earlier drafts of this module assumed we'd need a custom `CHAT_MSG_ADDON` channe
 
 ### v0.2.0-beta
 
-- **PartySync module** — coloured dot on every tracked quest row when in a party (green/yellow/blue/orange/hidden), with an Alt-hover tooltip showing per-member breakdown (class-coloured names, state text, BNet caveat footer when relevant).
+- **PartySync module** — coloured dot on every tracked quest row when in a party (green/yellow/blue/orange/hidden). Hover the row and Blizzard's normal quest tooltip gets a "Party state:" section appended: class-coloured member names with their state (`Ready to turn in` / `In progress (K/N)` / `Not on quest`) and a BNet-visibility footer when relevant. Attaches to both `QuestObjectiveTracker` and `CampaignQuestObjectiveTracker`, so campaign quests get the same treatment.
 - **Auto-promote in ZoneFilter** — new quests entering the log while the filter is active are added to the watch list immediately if they're zone-relevant. Closes the `autoQuestWatch` gap on event quests like *Void Assaults*.
 - **Module-toggle slash commands** — `/qf module list`, `/qf module enable|disable <name>`. PartySync hot-toggles; ZoneFilter still wants `/reload`.
 - Source restructured under `ZoneFilter/` and `PartySync/` namespaces.

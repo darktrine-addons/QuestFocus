@@ -29,5 +29,3 @@ PartySync\UI\MountTracker.lua
 PartySync\Boot.lua
 
 QuestFocus.lua
-
-Test\PartyProbe.lua
