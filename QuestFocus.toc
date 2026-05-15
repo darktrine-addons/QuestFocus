@@ -10,6 +10,7 @@
 ## SavedVariablesPerCharacter: QuestFocusCharDB
 
 Core\Config.lua
+Core\Settings.lua
 
 ZoneFilter\Core\State.lua
 ZoneFilter\Core\Relevance.lua

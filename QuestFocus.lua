@@ -18,6 +18,7 @@ boot:RegisterEvent("PLAYER_ENTERING_WORLD")
 boot:SetScript("OnEvent", function(self, event, who)
     if event == "ADDON_LOADED" and who == addonName then
         ns.Config.EnsureDB()
+        if ns.Settings and ns.Settings.Register then ns.Settings.Register() end
         if ZoneFilterEnabled() then
             ns.ZoneFilter.State.EnsureDB()
         end
