@@ -112,6 +112,23 @@ Implications (more measured than initial framing):
 
 We don't have a clean disambiguator inside the data plane. `UnitInParty("partyN")` works for BNet-hidden partymates (they're still in your WoW party), but the API doesn't expose a "BNet-visible" predicate we could use to suppress the orange state on hidden members specifically. If one exists in `C_BattleNet` or `C_FriendList`, it's worth a follow-up check, but it's polish-level priority.
 
+### 0.3 Implementation pivot at v0.3.0-beta: tooltip extends Blizzard
+
+The earlier design (§4.3) specified an Alt-hover tooltip on the indicator dot — a separate `GameTooltip` rendered by us, anchored to the indicator, gated by `IsAltKeyDown`. In practice this didn't survive contact with the live UI: Blizzard's own tracker-row tooltip kept winning the race, and the indicator dots were too small to reliably catch hover events.
+
+The shipped implementation **extends Blizzard's tracker-row tooltip instead of replacing it**:
+
+- `GameTooltip:HookScript("OnShow", …)` — when Blizzard's tooltip appears for a tracker row we recognise, we append a "Party state:" section after Blizzard's content.
+- Recognition via `MountTracker.GetQuestIDForBlock(owner)` — walks the parent chain so child-of-block owners (header buttons, etc.) also match.
+- The indicator dots are now click-through (`EnableMouse(false)`). They communicate the aggregate state at a glance; the detail lives in Blizzard's existing hover-tooltip flow.
+- **No Alt gate.** The party section is appended whenever we're in a party and the tooltip belongs to a tracked row. Cleaner UX than the modifier-key mechanic; if it gets noisy in dense rows we can add a gate back.
+
+The Party-state row format itself (class-coloured names, state column with "Ready to turn in" / "In progress (K/N)" / "Not on quest", BNet-visibility footer when relevant) is unchanged from §4.3 — just the *mechanism for showing* it has moved.
+
+Taint posture remains clean: `HookScript` registers an extra handler on the existing `GameTooltip` frame; no custom-field writes on Blizzard frames; `AddLine`/`AddDoubleLine` are public APIs.
+
+Sections §4.3 (Tooltip on Alt-hover), §7.3 (UI/Tooltip.lua's `OnEnter` / Alt polling), §8 (modifier choice config), and the Alt-related rows in §13 (decision log) are historical at this point. They describe the design as drafted; the shipped code is what this section says.
+
 ---
 
 ## 1. Overview
