@@ -116,6 +116,8 @@ local function FilterTooltip()
                 untrack, promote), 1, 1, 1, true)
         end
     end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("|cffaaaaaaShift-Right-click: open settings|r", 1, 1, 1, true)
 end
 
 local function RevertTooltip()
@@ -157,7 +159,17 @@ local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor)
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.15)
 
-    b:SetScript("OnClick", function(self)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnClick", function(self, button)
+        -- Shift-Right-click opens the Settings panel. Works in combat
+        -- (no protected calls), available on either button of the pair
+        -- so the user has it wherever they reach.
+        if button == "RightButton" then
+            if IsShiftKeyDown() and ns.Settings and ns.Settings.Open then
+                ns.Settings.Open()
+            end
+            return
+        end
         if InCombatLockdown() then return end
         onClick(IsShiftKeyDown() and true or false)
     end)

@@ -18,8 +18,23 @@
 local addonName, ns = ...
 ns.Settings = ns.Settings or {}
 
-local registered    = false
-local categoryRef   = nil   -- the category object, kept for OpenToCategory
+local registered     = false
+local categoryRef    = nil   -- the category object, kept for OpenToCategory
+
+-- Effective values snapshot — what the running session is using. Filled
+-- at Register() time and re-snapshotted on /reload. A panel checkbox
+-- is "dirty" when its current SV value differs from the effective
+-- snapshot for the same key. The Reload button uses HasReloadDirty()
+-- to gate its enabled state.
+local effective      = {}
+
+local function HasReloadDirty()
+    return effective.zoneFilter ~= nil
+       and effective.zoneFilter ~= (QuestFocusDB
+            and QuestFocusDB.modules
+            and QuestFocusDB.modules.ZoneFilter
+            and QuestFocusDB.modules.ZoneFilter.enabled)
+end
 
 local function HasModernSettingsAPI()
     return Settings
@@ -42,6 +57,10 @@ function ns.Settings.Register()
 
     local category, layout = Settings.RegisterVerticalLayoutCategory("QuestFocus")
     categoryRef = category
+
+    -- Snapshot effective values so the Reload button can detect when
+    -- a setting that needs /reload has been changed during this session.
+    effective.zoneFilter = QuestFocusDB.modules.ZoneFilter.enabled
 
     -- ZoneFilter toggle (requires /reload)
     local zfSetting = Settings.RegisterAddOnSetting(
@@ -82,6 +101,29 @@ function ns.Settings.Register()
             ns.PartySync.SetActive(value)
         end
     end)
+
+    -- Reload button. The Settings button-initializer API doesn't surface
+    -- a re-evaluating enabled-state hook for arbitrary predicates, so we
+    -- gate the click instead of greying the button: if no needs-/reload
+    -- setting has changed since this session loaded, the click is a no-op
+    -- with a chat message. Same end-state for the user (no unnecessary
+    -- reload), just without the visual cue.
+    if CreateSettingsButtonInitializer and layout and layout.AddInitializer then
+        local reloadInit = CreateSettingsButtonInitializer(
+            "",                  -- no left label
+            "Reload UI",         -- button text
+            function()
+                if HasReloadDirty() then
+                    ReloadUI()
+                else
+                    print("|cffffcc00QuestFocus|r No pending changes require a UI reload.")
+                end
+            end,
+            "Click to /reload when a setting marked 'Requires /reload' has been changed. "
+            .. "No-op when nothing is pending.",
+            true)
+        layout:AddInitializer(reloadInit)
+    end
 
     Settings.RegisterAddOnCategory(category)
     registered = true
