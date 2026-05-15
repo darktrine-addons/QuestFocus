@@ -96,6 +96,7 @@ function Apply.Filter(addFromLog)
 
     -- Record the new post-filter state for drift detection.
     State.SetLastApplied(newLastApplied)
+    State.SetLastMode("zoneFilter")
 
     if addFromLog then
         notify(string.format("focus: tracked %d, untracked %d", tracked, untracked))
@@ -168,6 +169,40 @@ local MODE_LABELS = {
     inProgressOnly = "in-progress",
 }
 
+-- Public: how many quests would this mode end up tracking after Apply?
+-- Used by the right-click menu to show a `(N)` preview per entry and
+-- to flag the "tracker will hide" 0-warning ahead of the click.
+function Apply.CountForMode(modeName)
+    local predicate = PREDICATES[modeName]
+    if not predicate then return 0 end
+    local count = 0
+    for _ in pairs(SelectQuestsBy(predicate)) do count = count + 1 end
+    return count
+end
+
+-- Public: how many quests would the zone-filter operations end up
+-- tracking after Apply? `addFromLog == true` mirrors shift-click
+-- (narrow + promote); false mirrors plain left-click (narrow only).
+function Apply.CountForFilter(addFromLog)
+    local State     = ns.ZoneFilter.State
+    local Relevance = ns.ZoneFilter.Relevance
+    if not State or not Relevance then return 0 end
+    if not Relevance.GetCurrentMapID or not Relevance.GetCurrentMapID() then return 0 end
+    local relevant = Relevance.GetRelevantQuests()
+    local current  = State.GetCurrentWatches()
+    local count = 0
+    if addFromLog then
+        -- Result = all zone-relevant quests in log.
+        for _ in pairs(relevant) do count = count + 1 end
+    else
+        -- Result = current ∩ relevant (narrow only).
+        for qid in pairs(current) do
+            if relevant[qid] then count = count + 1 end
+        end
+    end
+    return count
+end
+
 function Apply.Mode(modeName)
     if InCombatLockdown() then
         notify("cannot change tracker during combat")
@@ -215,6 +250,7 @@ function Apply.Mode(modeName)
     end
 
     State.SetLastApplied(target)
+    State.SetLastMode(modeName)
 
     notify(string.format("%s: tracked %d, untracked %d",
         MODE_LABELS[modeName] or modeName, tracked, untracked))

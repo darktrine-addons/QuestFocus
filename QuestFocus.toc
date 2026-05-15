@@ -17,7 +17,10 @@ ZoneFilter\Core\Relevance.lua
 ZoneFilter\Core\Apply.lua
 ZoneFilter\Core\Revert.lua
 ZoneFilter\Core\AutoPromote.lua
-ZoneFilter\UI\Buttons.lua
+ZoneFilter\UI\Buttons\Constants.lua
+ZoneFilter\UI\Buttons\Tooltips.lua
+ZoneFilter\UI\Buttons\Menu.lua
+ZoneFilter\UI\Buttons\Factory.lua
 ZoneFilter\UI\ButtonTracker.lua
 ZoneFilter\UI\ButtonQuestLog.lua
 

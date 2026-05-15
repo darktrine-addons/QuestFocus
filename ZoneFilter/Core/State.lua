@@ -84,6 +84,24 @@ function State.ClearLastApplied()
 end
 
 -- ============================================================
+-- LastMode — name of the most recent Apply operation. Used by the
+-- tooltip ("Current mode: campaign-only") and the conditional re-apply
+-- button. Values: "zoneFilter" / "trackAll" / "campaignOnly" / etc.
+-- ============================================================
+
+function State.GetLastMode()
+    return QuestFocusCharDB and QuestFocusCharDB.lastMode
+end
+
+function State.SetLastMode(name)
+    QuestFocusCharDB.lastMode = name
+end
+
+function State.ClearLastMode()
+    QuestFocusCharDB.lastMode = nil
+end
+
+-- ============================================================
 -- Live read of current watch list. Returns set { [qID]=true }.
 -- ============================================================
 
@@ -112,8 +130,23 @@ function State.GetDriftAddCount()
     return count
 end
 
+-- Quests that the last Apply put into the watch list but are no longer
+-- there — the user (or some external untrack) deviated from the mode
+-- by removing entries. Symmetric counterpart to GetDriftAddCount.
+function State.GetDriftRemoveCount()
+    local last = State.GetLastApplied()
+    if not last then return 0 end
+    local current = State.GetCurrentWatches()
+    local count = 0
+    for qid in pairs(last) do
+        if not current[qid] then count = count + 1 end
+    end
+    return count
+end
+
 function State.IsDirty()
-    return State.GetFilterActive() and State.GetDriftAddCount() > 0
+    if not State.GetFilterActive() then return false end
+    return State.GetDriftAddCount() > 0 or State.GetDriftRemoveCount() > 0
 end
 
 -- ============================================================
