@@ -36,8 +36,15 @@ function Tooltips.Filter()
     local lastMode = State.GetLastMode and State.GetLastMode()
     local nonZone  = lastMode and lastMode ~= "zoneFilter"
 
-    -- 1. Title.
-    GameTooltip:SetText("Focus (zone filter)", 1, 0.82, 0)
+    -- 1. Title. Greyed when a non-zone mode is active — the lens's
+    --    "Focus" identity isn't what's currently driving the tracker,
+    --    so we visually defer to the active mode rather than asserting
+    --    the lens's name.
+    if nonZone then
+        GameTooltip:SetText("Focus (zone filter)", 0.55, 0.55, 0.55)
+    else
+        GameTooltip:SetText("Focus (zone filter)", 1, 0.82, 0)
+    end
     -- Widen so warning-suffixed lines and the legend don't wrap.
     if GameTooltip.SetMinimumWidth then GameTooltip:SetMinimumWidth(280) end
 
@@ -58,10 +65,10 @@ function Tooltips.Filter()
             else
                 driftStr = string.format("%d removed", rmN)
             end
-            GameTooltip:AddLine(string.format("Mode: |cffffcc00%s|r — |cffff8c26%s since|r",
+            GameTooltip:AddLine(string.format("Current mode: |cffffcc00%s|r — |cffff8c26%s since|r",
                 modeLabel, driftStr), 1, 1, 1, true)
         else
-            GameTooltip:AddLine(string.format("Mode: |cffffcc00%s|r — |cff44ff44clean|r", modeLabel),
+            GameTooltip:AddLine(string.format("Current mode: |cffffcc00%s|r — |cff44ff44clean|r", modeLabel),
                 1, 1, 1, true)
         end
     end

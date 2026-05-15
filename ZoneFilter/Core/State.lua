@@ -1,17 +1,29 @@
--- State.lua — SavedVars accessors and bookkeeping.
+-- State.lua — SavedVars accessors and the central state machine for
+-- the tracker filter.
 --
--- State model:
---   filterActive : bool       — a snapshot exists
---   snapshot     : { [qID]=t } — pre-filter watch list; grows on re-apply to
---                                absorb interim user/auto-track additions
---   lastApplied  : { [qID]=t } — watch list state immediately after the most
---                                recent Filter operation (= zone-relevant set
---                                at that moment). Used to detect drift.
+-- One nullable SV struct holds the entire applied-filter state:
 --
--- Derived:
---   drift_adds   = current ∖ lastApplied   (quests appearing since last filter)
---   isDirty      = drift_adds ≠ ∅
---   revertTarget = snapshot ∪ drift_adds   (merge revert: preserve interim adds)
+--   QuestFocusCharDB.currentApplication = nil
+--     — no filter active
+--
+--   QuestFocusCharDB.currentApplication = {
+--       mode     = "campaignOnly",       -- which Apply produced this
+--       target   = { [qid] = true, ... }, -- the post-apply watch list
+--       snapshot = { [qid] = true, ... }, -- pre-filter watch list, accumulates drift_adds
+--   }
+--
+-- Derived (computed from currentApplication on demand):
+--   filterActive       = currentApplication ~= nil
+--   driftAdds          = current ∖ target    -- quests added since the apply
+--   driftRemoves       = target ∖ current    -- quests removed since the apply
+--   dirty              = driftAdds ≠ ∅ or driftRemoves ≠ ∅
+--   revertAddCount     = |snapshot ∖ current|   -- how many quests revert would re-track
+--   revertTarget       = snapshot ∪ driftAdds   -- merge-revert semantics
+--
+-- Only three functions mutate currentApplication:
+--   TransitionToMode(modeName, target)  — first-apply or re-apply
+--   ExtendTarget(qid)                   — add one quest to the active target
+--   ClearFilter()                       — discard everything
 
 local addonName, ns = ...
 ns.ZoneFilter = ns.ZoneFilter or {}
@@ -19,92 +31,118 @@ local State = {}
 ns.ZoneFilter.State = State
 
 -- ============================================================
--- Bootstrap
+-- Bootstrap & migration
 -- ============================================================
+
+local function MigrateLegacyShape()
+    -- The four-flat-fields layout shipped before this refactor. If we
+    -- find filterActive (with the post-v0.1.0-beta lastApplied), fold
+    -- the four fields into the new currentApplication struct.
+    if QuestFocusCharDB.currentApplication then return end
+    if not QuestFocusCharDB.filterActive then
+        -- Old "inactive" state — just clear leftovers.
+        QuestFocusCharDB.filterActive = nil
+        QuestFocusCharDB.snapshot     = nil
+        QuestFocusCharDB.lastApplied  = nil
+        QuestFocusCharDB.lastMode     = nil
+        return
+    end
+    if not QuestFocusCharDB.lastApplied then
+        -- Legacy v0.1.0-beta state — can't migrate cleanly; drop.
+        QuestFocusCharDB.filterActive = nil
+        QuestFocusCharDB.snapshot     = nil
+        QuestFocusCharDB.lastApplied  = nil
+        QuestFocusCharDB.lastMode     = nil
+        return
+    end
+    QuestFocusCharDB.currentApplication = {
+        mode     = QuestFocusCharDB.lastMode or "zoneFilter",
+        target   = QuestFocusCharDB.lastApplied,
+        snapshot = QuestFocusCharDB.snapshot or {},
+    }
+    QuestFocusCharDB.filterActive = nil
+    QuestFocusCharDB.snapshot     = nil
+    QuestFocusCharDB.lastApplied  = nil
+    QuestFocusCharDB.lastMode     = nil
+end
 
 function State.EnsureDB()
     QuestFocusDB     = QuestFocusDB     or {}
     QuestFocusCharDB = QuestFocusCharDB or {}
-    if QuestFocusCharDB.filterActive == nil then
-        QuestFocusCharDB.filterActive = false
-    end
-    -- Migration: lastApplied was introduced after v0.1.0-beta. If a user's
-    -- SavedVars predate it (filterActive=true but no lastApplied), the only
-    -- safe move is to clear filter state — we can't distinguish drift adds
-    -- from filter additions without lastApplied.
-    if QuestFocusCharDB.filterActive and not QuestFocusCharDB.lastApplied then
-        QuestFocusCharDB.snapshot = nil
-        QuestFocusCharDB.filterActive = false
-    end
+    MigrateLegacyShape()
 end
 
 -- ============================================================
--- Filter-active flag
+-- The three mutators — only these touch currentApplication
+-- ============================================================
+
+-- First-apply or re-apply. Caller MUST pass `priorWatches` — the
+-- watch-list snapshot taken before any RemoveQuestWatch / AddQuestWatch
+-- calls happen — because by the time we set state, the live watch list
+-- has already moved. On first apply: snapshot = priorWatches. On
+-- re-apply: accumulates drift_adds (priorWatches ∖ existing target)
+-- into the existing snapshot so they survive a future revert.
+function State.TransitionToMode(modeName, target, priorWatches)
+    local existing = QuestFocusCharDB.currentApplication
+
+    local newSnapshot
+    if existing and existing.snapshot then
+        -- Re-apply: accumulate drift_adds.
+        newSnapshot = existing.snapshot
+        local oldTarget = existing.target or {}
+        for qid in pairs(priorWatches) do
+            if not oldTarget[qid] then newSnapshot[qid] = true end
+        end
+    else
+        -- First apply: snapshot = pre-apply watch list.
+        newSnapshot = {}
+        for qid in pairs(priorWatches) do newSnapshot[qid] = true end
+    end
+
+    QuestFocusCharDB.currentApplication = {
+        mode     = modeName,
+        target   = target,
+        snapshot = newSnapshot,
+    }
+end
+
+-- Append a single questID to the currently-active target. Used by
+-- AutoPromote so that a zone-relevant quest entering the log doesn't
+-- register as drift. No-op when no filter is active.
+function State.ExtendTarget(questID)
+    local app = QuestFocusCharDB.currentApplication
+    if not app or not app.target then return end
+    app.target[questID] = true
+end
+
+function State.ClearFilter()
+    QuestFocusCharDB.currentApplication = nil
+end
+
+-- ============================================================
+-- Read-only accessors (computed from currentApplication)
 -- ============================================================
 
 function State.GetFilterActive()
-    return QuestFocusCharDB and QuestFocusCharDB.filterActive == true
+    return QuestFocusCharDB and QuestFocusCharDB.currentApplication ~= nil
 end
-
-function State.SetFilterActive(active)
-    QuestFocusCharDB.filterActive = active and true or false
-end
-
--- ============================================================
--- Snapshot — pre-filter watch list. Survives re-applies (it grows).
--- ============================================================
 
 function State.GetSnapshot()
-    return QuestFocusCharDB and QuestFocusCharDB.snapshot
+    local app = QuestFocusCharDB and QuestFocusCharDB.currentApplication
+    return app and app.snapshot
 end
-
-function State.SetSnapshot(snap)
-    QuestFocusCharDB.snapshot = snap
-end
-
-function State.ClearSnapshot()
-    QuestFocusCharDB.snapshot = nil
-end
-
--- ============================================================
--- LastApplied — watch list state right after most recent Filter.
--- Used to detect drift_adds (quests that appeared since).
--- ============================================================
 
 function State.GetLastApplied()
-    return QuestFocusCharDB and QuestFocusCharDB.lastApplied
+    local app = QuestFocusCharDB and QuestFocusCharDB.currentApplication
+    return app and app.target
 end
-
-function State.SetLastApplied(set)
-    QuestFocusCharDB.lastApplied = set
-end
-
-function State.ClearLastApplied()
-    QuestFocusCharDB.lastApplied = nil
-end
-
--- ============================================================
--- LastMode — name of the most recent Apply operation. Used by the
--- tooltip ("Current mode: campaign-only") and the conditional re-apply
--- button. Values: "zoneFilter" / "trackAll" / "campaignOnly" / etc.
--- ============================================================
 
 function State.GetLastMode()
-    return QuestFocusCharDB and QuestFocusCharDB.lastMode
+    local app = QuestFocusCharDB and QuestFocusCharDB.currentApplication
+    return app and app.mode
 end
 
-function State.SetLastMode(name)
-    QuestFocusCharDB.lastMode = name
-end
-
-function State.ClearLastMode()
-    QuestFocusCharDB.lastMode = nil
-end
-
--- ============================================================
--- Live read of current watch list. Returns set { [qID]=true }.
--- ============================================================
-
+-- Live read of the player's watch list. Returns { [qID] = true }.
 function State.GetCurrentWatches()
     local set = {}
     for i = 1, C_QuestLog.GetNumQuestWatches() do
@@ -115,8 +153,7 @@ function State.GetCurrentWatches()
 end
 
 -- ============================================================
--- Drift detection — quests in current that weren't in lastApplied.
--- These are interim user adds / auto-track adds since the last filter.
+-- Drift detection (pure derivations)
 -- ============================================================
 
 function State.GetDriftAddCount()
@@ -130,9 +167,6 @@ function State.GetDriftAddCount()
     return count
 end
 
--- Quests that the last Apply put into the watch list but are no longer
--- there — the user (or some external untrack) deviated from the mode
--- by removing entries. Symmetric counterpart to GetDriftAddCount.
 function State.GetDriftRemoveCount()
     local last = State.GetLastApplied()
     if not last then return 0 end
@@ -149,13 +183,8 @@ function State.IsDirty()
     return State.GetDriftAddCount() > 0 or State.GetDriftRemoveCount() > 0
 end
 
--- ============================================================
--- Revert add count — quests in snapshot that aren't currently watched,
--- i.e. how many quests a Revert would re-track. Used for the badge.
--- (Drift adds, by definition, are in current, so the badge formula
---  |snapshot ∖ current| is the same under merge semantics.)
--- ============================================================
-
+-- Quests in snapshot but not in current watches — how many revert
+-- would re-track. Used by the count badge on the revert button.
 function State.GetRevertAddCount()
     local snap = State.GetSnapshot()
     if not snap then return 0 end

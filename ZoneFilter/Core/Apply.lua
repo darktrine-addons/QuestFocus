@@ -1,23 +1,20 @@
--- Apply.lua — the Filter operation.
+-- Apply.lua — the single Apply operation for every tracker mode.
 --
--- Two click modes:
---   Plain click (addFromLog = false): narrow only. Untrack any watch-list
---     entry whose quest isn't in the current zone. Do not promote
---     untracked zone-relevant quests from the quest log.
---   Shift-click (addFromLog = true): narrow + promote. Same untrack pass,
---     plus AddQuestWatch on any quest log entry that's zone-relevant but
---     not currently watched.
+-- All modes (zone-filter, campaign-only, weeklies-only, ready-to-turn-in,
+-- untrack-all, etc.) are expressed as predicates on QuestInfo rows.
+-- Apply.Mode(modeName, opts) walks the quest log with the named
+-- predicate, untracks watches that aren't in the target set, optionally
+-- promotes target quests not yet watched, and hands the resulting state
+-- to State.TransitionToMode.
 --
--- First call: snapshot the current watch list, apply the chosen mode, set
---             lastApplied to the post-filter watch state.
+-- Apply.Filter(addFromLog) is sugar: zoneFilter predicate + a guard
+-- for the zone map-id (so we can return a clearer message if the
+-- player hasn't opened the world map yet) + opts.narrowOnly when
+-- addFromLog == false (narrow-only matches plain-click behaviour).
 --
--- Subsequent call (re-apply): if we're "dirty" (current has quests that
---             weren't in lastApplied), those drift adds get folded into
---             snapshot first — so future revert preserves them. Then
---             re-apply with the chosen mode and refresh lastApplied.
---
--- After any successful call: drift_adds = ∅ (lastApplied has just been
---             refreshed), so the indicator returns to green.
+-- The state machine — when to snapshot, when to accumulate drift —
+-- lives in State.TransitionToMode. This file only worries about the
+-- predicate, the diff, and the slash-print.
 
 local addonName, ns = ...
 ns.ZoneFilter = ns.ZoneFilter or {}
@@ -28,98 +25,8 @@ local function notify(msg)
     print("|cffffcc00QuestFocus|r " .. msg)
 end
 
-function Apply.Filter(addFromLog)
-    if InCombatLockdown() then
-        notify("cannot filter during combat")
-        return
-    end
-
-    local State     = ns.ZoneFilter.State
-    local Relevance = ns.ZoneFilter.Relevance
-
-    local mapID = Relevance.GetCurrentMapID()
-    if not mapID then
-        notify("could not determine current zone")
-        return
-    end
-
-    local current = State.GetCurrentWatches()
-
-    if not State.GetFilterActive() then
-        -- First filter — snapshot the current watch list as the revert base.
-        State.SetSnapshot(current)
-        State.SetFilterActive(true)
-    else
-        -- Re-apply: accumulate drift_adds into snapshot so they're preserved
-        -- on future revert. (current ∖ lastApplied = quests added since the
-        -- last filter; they represent user / auto-track choices we shouldn't
-        -- silently lose.)
-        local last = State.GetLastApplied()
-        if last then
-            local snap = State.GetSnapshot() or {}
-            for qid in pairs(current) do
-                if not last[qid] then
-                    snap[qid] = true
-                end
-            end
-            State.SetSnapshot(snap)
-        end
-    end
-
-    local relevant = Relevance.GetRelevantQuests()
-    local untracked, tracked = 0, 0
-
-    -- Always: untrack any current watch that's not zone-relevant
-    for qid in pairs(current) do
-        if not relevant[qid] then
-            C_QuestLog.RemoveQuestWatch(qid)
-            untracked = untracked + 1
-        end
-    end
-
-    -- Compute the post-untrack survivors (= current ∩ relevant).
-    local newLastApplied = {}
-    for qid in pairs(current) do
-        if relevant[qid] then newLastApplied[qid] = true end
-    end
-
-    -- Shift-click only: also promote untracked zone-relevant quests from the log
-    if addFromLog then
-        for qid in pairs(relevant) do
-            if not current[qid] then
-                C_QuestLog.AddQuestWatch(qid)
-                tracked = tracked + 1
-                newLastApplied[qid] = true
-            end
-        end
-    end
-
-    -- Record the new post-filter state for drift detection.
-    State.SetLastApplied(newLastApplied)
-    State.SetLastMode("zoneFilter")
-
-    if addFromLog then
-        notify(string.format("focus: tracked %d, untracked %d", tracked, untracked))
-    else
-        notify(string.format("focus: untracked %d (shift-click to add untracked zone quests)", untracked))
-    end
-
-    if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then ns.ZoneFilter.UI.OnStateChanged() end
-end
-
 -- ============================================================
--- Apply.Mode(modeName) — generalised "select target set, untrack the
--- rest, promote new ones, save lastApplied" applied for non-zone modes.
--- Shares the same snapshot / drift / revert state machine as
--- Apply.Filter, so the user can revert any mode to the pre-mode state.
---
--- Available modes:
---   untrackAll     — target = ∅; clears the watch list entirely
---   campaignOnly   — target = every campaign quest in the log
---   weekliesOnly   — target = every weekly-frequency quest in the log
---   importantOnly  — target = every quest Blizzard tags as "Important"
---                    (purple-triangle icon; questClassification = Important).
---                    TWW 11.0.2+ API, current in Interface 120005+.
+-- Predicates and modes
 -- ============================================================
 
 local WEEKLY_FREQUENCY = (Enum and Enum.QuestFrequency and Enum.QuestFrequency.Weekly) or 2
@@ -131,6 +38,10 @@ local function QuestIsComplete(questID)
         return C_QuestLog.IsComplete(questID) and true or false
     end
     return false
+end
+
+local function ZoneRelevant(info)
+    return ns.ZoneFilter.Relevance and ns.ZoneFilter.Relevance.IsQuestInCurrentZone(info)
 end
 
 local function SelectQuestsBy(predicate)
@@ -148,6 +59,7 @@ local function SelectQuestsBy(predicate)
 end
 
 local PREDICATES = {
+    zoneFilter     = ZoneRelevant,
     untrackAll     = function(info) return false end,
     trackAll       = function(info) return true  end,
     campaignOnly   = function(info) return info.campaignID ~= nil end,
@@ -159,6 +71,7 @@ local PREDICATES = {
 }
 
 local MODE_LABELS = {
+    zoneFilter     = "zone-filter",
     untrackAll     = "untrack-all",
     trackAll       = "track-all",
     campaignOnly   = "campaign-only",
@@ -169,9 +82,11 @@ local MODE_LABELS = {
     inProgressOnly = "in-progress",
 }
 
--- Public: how many quests would this mode end up tracking after Apply?
--- Used by the right-click menu to show a `(N)` preview per entry and
--- to flag the "tracker will hide" 0-warning ahead of the click.
+-- ============================================================
+-- Public count helpers — used by the right-click menu's `(N)` preview
+-- and by the lens tooltip's resulting-watched line.
+-- ============================================================
+
 function Apply.CountForMode(modeName)
     local predicate = PREDICATES[modeName]
     if not predicate then return 0 end
@@ -180,22 +95,20 @@ function Apply.CountForMode(modeName)
     return count
 end
 
--- Public: how many quests would the zone-filter operations end up
--- tracking after Apply? `addFromLog == true` mirrors shift-click
--- (narrow + promote); false mirrors plain left-click (narrow only).
+-- For the zone-filter operations specifically (addFromLog reflects the
+-- shift state). Couples to State so it can return the narrow-only
+-- count (current ∩ relevant) for plain click.
 function Apply.CountForFilter(addFromLog)
-    local State     = ns.ZoneFilter.State
-    local Relevance = ns.ZoneFilter.Relevance
-    if not State or not Relevance then return 0 end
-    if not Relevance.GetCurrentMapID or not Relevance.GetCurrentMapID() then return 0 end
-    local relevant = Relevance.GetRelevantQuests()
+    local State = ns.ZoneFilter.State
+    if not State or not ZoneRelevant then return 0 end
+    if not ns.ZoneFilter.Relevance.GetCurrentMapID
+       or not ns.ZoneFilter.Relevance.GetCurrentMapID() then return 0 end
+    local relevant = SelectQuestsBy(ZoneRelevant)
     local current  = State.GetCurrentWatches()
     local count = 0
     if addFromLog then
-        -- Result = all zone-relevant quests in log.
         for _ in pairs(relevant) do count = count + 1 end
     else
-        -- Result = current ∩ relevant (narrow only).
         for qid in pairs(current) do
             if relevant[qid] then count = count + 1 end
         end
@@ -203,7 +116,17 @@ function Apply.CountForFilter(addFromLog)
     return count
 end
 
-function Apply.Mode(modeName)
+-- ============================================================
+-- The single Apply
+-- ============================================================
+--
+-- opts = {
+--     narrowOnly = bool,   -- if true, skip the "promote new targets"
+--                          -- step. Used by zoneFilter plain-click.
+-- }
+
+function Apply.Mode(modeName, opts)
+    opts = opts or {}
     if InCombatLockdown() then
         notify("cannot change tracker during combat")
         return
@@ -216,25 +139,10 @@ function Apply.Mode(modeName)
 
     local State   = ns.ZoneFilter.State
     local current = State.GetCurrentWatches()
+    local target  = SelectQuestsBy(predicate)
 
-    -- Same snapshot / drift handling as Apply.Filter — a mode-apply is
-    -- conceptually a fresh Filter operation under a different predicate.
-    if not State.GetFilterActive() then
-        State.SetSnapshot(current)
-        State.SetFilterActive(true)
-    else
-        local last = State.GetLastApplied()
-        if last then
-            local snap = State.GetSnapshot() or {}
-            for qid in pairs(current) do
-                if not last[qid] then snap[qid] = true end
-            end
-            State.SetSnapshot(snap)
-        end
-    end
-
-    local target = SelectQuestsBy(predicate)
-
+    -- Diff: untrack current watches not in target; optionally promote
+    -- target quests not currently watched.
     local untracked, tracked = 0, 0
     for qid in pairs(current) do
         if not target[qid] then
@@ -242,15 +150,31 @@ function Apply.Mode(modeName)
             untracked = untracked + 1
         end
     end
-    for qid in pairs(target) do
-        if not current[qid] then
-            C_QuestLog.AddQuestWatch(qid)
-            tracked = tracked + 1
+
+    -- Compute the actual post-apply watch list (what lastApplied
+    -- should record). For narrowOnly it's current ∩ target; otherwise
+    -- it equals the full target set after the promote pass.
+    local actualTarget = {}
+    for qid in pairs(current) do
+        if target[qid] then actualTarget[qid] = true end
+    end
+
+    if not opts.narrowOnly then
+        for qid in pairs(target) do
+            if not current[qid] then
+                C_QuestLog.AddQuestWatch(qid)
+                tracked = tracked + 1
+                actualTarget[qid] = true
+            end
         end
     end
 
-    State.SetLastApplied(target)
-    State.SetLastMode(modeName)
+    -- Pass the pre-apply watches snapshot — current was captured before
+    -- any RemoveQuestWatch / AddQuestWatch calls above mutated the live
+    -- list. Without this, TransitionToMode would read the post-apply
+    -- watch list and write it as the snapshot (= nothing to restore on
+    -- revert).
+    State.TransitionToMode(modeName, actualTarget, current)
 
     notify(string.format("%s: tracked %d, untracked %d",
         MODE_LABELS[modeName] or modeName, tracked, untracked))
@@ -258,4 +182,16 @@ function Apply.Mode(modeName)
     if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then
         ns.ZoneFilter.UI.OnStateChanged()
     end
+end
+
+-- Apply.Filter — sugar over Apply.Mode("zoneFilter", ...). Adds the
+-- map-id guard (specific to the zone-filter use case) and translates
+-- the addFromLog shift-flag into opts.narrowOnly.
+function Apply.Filter(addFromLog)
+    local Relevance = ns.ZoneFilter.Relevance
+    if not Relevance or not Relevance.GetCurrentMapID() then
+        notify("could not determine current zone")
+        return
+    end
+    Apply.Mode("zoneFilter", { narrowOnly = not addFromLog })
 end

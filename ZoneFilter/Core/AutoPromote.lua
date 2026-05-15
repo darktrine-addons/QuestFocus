@@ -47,9 +47,7 @@ local function TryPromote(questID)
     C_QuestLog.AddQuestWatch(questID)
 
     -- Mark as filter-intended so it doesn't register as drift.
-    local last = State.GetLastApplied() or {}
-    last[questID] = true
-    State.SetLastApplied(last)
+    State.ExtendTarget(questID)
 
     if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then
         ns.ZoneFilter.UI.OnStateChanged()

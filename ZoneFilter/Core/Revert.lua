@@ -58,10 +58,7 @@ function Revert.Revert()
         end
     end
 
-    State.ClearSnapshot()
-    State.ClearLastApplied()
-    State.ClearLastMode()
-    State.SetFilterActive(false)
+    State.ClearFilter()
 
     notify(string.format("revert: restored %d, removed %d", added, removed))
 
