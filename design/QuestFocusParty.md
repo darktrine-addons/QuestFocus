@@ -647,6 +647,21 @@ This now ships as the full feature, not a degraded MVP.
 - Real-time stress test the recompute path (3-second sweep cadence; tune if it costs CPU)
 - Raid support: aggregate-only display, hide per-member tooltip beyond N members
 
+### Phase 3 (early): Session-state-aware tooltip enrichment
+
+The current tooltip "Party state:" section largely duplicates Blizzard's per-player objective listing (just with class colours and a (K/N) summary). The genuinely unique signal — the aggregate categorisation (`Aligned` / `Mixed` / `Ready` / `Shareable`) — already lives on the indicator dot, so the tooltip body adds little.
+
+Proposed replacement: tooltip surfaces only information **not** derivable from Blizzard's own data, tracked across the in-session lifetime of a party:
+
+- **`Shareable with: <names>`** — list of party members who could accept this quest (in same zone, not currently on it, levels compatible). Derived from `Fetch.GetPartyProgress` + `UnitInParty` + `C_Map.GetBestMapForUnit("partyN")`.
+- **`Recently turned in: <names>`** — partymates that were `complete` in the last poll but have since dropped from the quest (turn-in detected). Held for ~60 s after detection, then expired.
+- **`Recently accepted: <names>`** — partymates that just appeared on this quest (joined since last poll).
+- **`S` action button instead of dot** when the active state is `alone_shareable` — clickable out-of-combat affordance to one-click share to a specific partymate (or all eligibles). Replaces the dot icon for that state.
+
+State storage is session-local (a Lua table keyed by quest+player+timestamp), wiped on `PLAYER_LEAVING_WORLD`, `PLAYER_LOGOUT`, `GROUP_LEFT`, and on roster churn that drops the relevant peer. No SavedVariables — these signals are only meaningful in the current session.
+
+Why "early Phase 3": no addon-channel broadcast required, just observation of the local client. Less risky than the comm protocol in §6.1. Doable as a standalone bundle whenever it becomes the highest-value next step.
+
 ### Phase 3: Broadcast protocol (optional polish)
 
 Still optional. Possible drivers if Phase 1 / Phase 2 don't satisfy:

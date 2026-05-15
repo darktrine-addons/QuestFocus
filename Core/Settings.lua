@@ -29,121 +29,145 @@ local categoryRef    = nil   -- the category object, kept for OpenToCategory
 local effective      = {}
 
 -- ============================================================
--- Solo preview state (slice B): four demo indicators anchored above
--- the settings panel so the user can eyeball size/shape/palette/opacity
--- changes without being in a party. 30 s timer, refreshes on re-click,
--- stops automatically when the settings panel hides.
+-- Style preview surfaces
 -- ============================================================
+--
+-- Two complementary views into "what will my indicator dots look
+-- like?":
+--
+-- 1. Inline permanent preview — a small static row inside the
+--    QuestFocus settings page (top-right of the right pane). Always
+--    visible while the page is open. Updates the moment any visual
+--    setting changes.
+--
+-- 2. On-tracker preview ("Preview indicators" button) — temporarily
+--    attaches up to 4 demo dots to actual tracker rows for in-context
+--    review. Truncates to N if fewer than 4 quests are watched. No-op
+--    (with chat message) when nothing is watched. 30 s timer; re-click
+--    extends.
 
 local PREVIEW_STATES     = { "aligned", "mixed", "ready_turn_in", "alone_shareable" }
-local PREVIEW_LABEL_TEXT = { "Aligned", "Mixed",  "Ready",        "Shareable"       }
-local PREVIEW_SPACING    = 60
+local PREVIEW_LABEL_TEXT = { "Aligned", "Mixed", "Ready",         "Shareable"       }
+local PREVIEW_TOOLTIPS   = {
+    "Every party member is on this quest and progressing. No coordination needed.",
+    "Some party members are on the quest, some aren't. Worth checking in.",
+    "At least one party member has the quest objectives complete and ready to turn in.",
+    "Only you have this quest, and at least one partymate is in the same zone — share opportunity.",
+}
 local PREVIEW_DURATION   = 30
 
-local previewDots       = {}
-local previewLabels     = {}
-local previewCountdown  = nil
-local previewExpiresAt  = nil
-local previewTicker     = nil
-local previewMode       = nil   -- "tracker" or "free" while running
-local panelHideHooked   = false
+-- ------------------------------------------------------------
+-- Inline permanent preview: a layout-flow row containing 4 demo dots
+-- with labels and hover tooltips. Built as a custom initializer wrapping
+-- SettingsListSectionHeaderTemplate so the framework handles category-
+-- visibility for us automatically.
+-- ------------------------------------------------------------
 
-local function HidePreview()
-    for _, d in ipairs(previewDots) do
-        if ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator and ns.PartySync.UI.Indicator.Release then
-            ns.PartySync.UI.Indicator.Release(d)
-        end
-    end
-    wipe(previewDots)
-    for _, l in ipairs(previewLabels) do l:Hide() end
-    wipe(previewLabels)
-    if previewCountdown then previewCountdown:Hide() end
-    if previewTicker then previewTicker:Cancel() end
-    previewTicker    = nil
-    previewExpiresAt = nil
-    previewMode      = nil
-end
+local inlinePreviewDots = {}  -- captured at first InitFrame for refresh
 
-local function StartCountdown(anchor, yOffset)
-    if not previewCountdown then
-        previewCountdown = UIParent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    end
-    previewCountdown:SetParent(anchor)
-    previewCountdown:ClearAllPoints()
-    previewCountdown:SetPoint("BOTTOM", anchor, "TOP", 0, yOffset)
-    previewCountdown:SetText(string.format("Preview ends in %ds", PREVIEW_DURATION))
-    previewCountdown:Show()
+local function AttachInlinePreviewDots(frame)
+    if frame.qfPreviewAttached then return end
+    frame.qfPreviewAttached = true
 
-    previewExpiresAt = GetTime() + PREVIEW_DURATION
-    previewTicker = C_Timer.NewTicker(0.5, function()
-        if not previewExpiresAt then return end
-        local remaining = previewExpiresAt - GetTime()
-        if remaining <= 0 then
-            HidePreview()
-        elseif previewCountdown then
-            previewCountdown:SetText(string.format("Preview ends in %ds", math.ceil(remaining)))
-        end
-    end)
-end
+    local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
+    if not Indicator or not Indicator.Acquire then return end
 
--- Free-floating preview: 4 dots above the settings panel with state
--- labels below each. Used when there aren't enough tracked quests to
--- run a tracker preview.
-local function ShowFreePreview()
-    previewMode = "free"
-    local anchor = SettingsPanel
-    if not anchor or not anchor.IsVisible or not anchor:IsVisible() then
-        anchor = UIParent
+    -- Background rectangle making the row feel like its own panel.
+    -- Starts ~36 px below the title to leave space between section
+    -- heading and the dot row.
+    if not frame.qfPreviewBg then
+        local bg = frame:CreateTexture(nil, "BACKGROUND")
+        bg:SetColorTexture(0, 0, 0, 0.25)
+        bg:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -36)
+        bg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 4)
+        frame.qfPreviewBg = bg
     end
 
+    local prevDot
     for i, state in ipairs(PREVIEW_STATES) do
-        local f = ns.PartySync.UI.Indicator.Acquire()
-        f:SetParent(anchor)
-        f:SetFrameStrata("TOOLTIP")
-        f:ClearAllPoints()
-        local x = (i - 2.5) * PREVIEW_SPACING
-        f:SetPoint("BOTTOM", anchor, "TOP", x, 30)
-        ns.PartySync.UI.Indicator.SetState(f, state)
-        previewDots[i] = f
+        local d = Indicator.Acquire()
+        d:SetParent(frame)
+        d:ClearAllPoints()
+        if prevDot then
+            d:SetPoint("LEFT", prevDot, "RIGHT", 70, 0)
+        else
+            -- Dot row sits ~16 px inside the background → ~52 px below
+            -- the title. Roughly one section-header-height of breathing.
+            d:SetPoint("TOPLEFT", frame, "TOPLEFT", 40, -48)
+        end
+        Indicator.SetState(d, state)
+        inlinePreviewDots[i] = d
+        prevDot = d
 
-        local lbl = anchor:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        lbl:SetPoint("TOP", f, "BOTTOM", 0, -3)
+        -- One-word legend under each dot.
+        local lbl = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        lbl:SetPoint("TOP", d, "BOTTOM", 0, -3)
         lbl:SetText(PREVIEW_LABEL_TEXT[i])
-        previewLabels[i] = lbl
-    end
 
-    StartCountdown(anchor, 55)
+        -- Hover tooltip with longer explanation. Enable mouse on the
+        -- dot so it can fire OnEnter — Indicator.Acquire disables it
+        -- for tracker use, so we re-enable for the preview row.
+        d:EnableMouse(true)
+        local tooltipTitle = PREVIEW_LABEL_TEXT[i]
+        local tooltipBody  = PREVIEW_TOOLTIPS[i]
+        d:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(tooltipTitle, 1, 0.82, 0)
+            GameTooltip:AddLine(tooltipBody, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        d:SetScript("OnLeave", GameTooltip_Hide)
+    end
 end
 
--- Tracker preview: attach one demo dot per state to the first 4 visible
--- tracker rows. WYSIWYG — same anchor logic, same row geometry, B3
--- (anchor position) changes show effect.
-local function ShowTrackerPreview(blocks)
-    previewMode = "tracker"
-    local Indicator = ns.PartySync.UI.Indicator
-    local MT        = ns.PartySync.UI.MountTracker
-    for i, block in ipairs(blocks) do
-        local f = Indicator.Acquire()
-        f:SetParent(block)
-        if MT.ApplyAnchorToBlock then MT.ApplyAnchorToBlock(f, block) end
-        Indicator.SetState(f, PREVIEW_STATES[i])
-        previewDots[i] = f
+local function RefreshInlinePreview()
+    local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
+    if not Indicator or not Indicator.SetState then return end
+    for i, dot in ipairs(inlinePreviewDots) do
+        Indicator.SetState(dot, PREVIEW_STATES[i])
     end
-
-    -- Countdown still lives above the settings panel — it's where the
-    -- user is looking while tweaking settings.
-    local anchor = SettingsPanel
-    if not anchor or not anchor.IsVisible or not anchor:IsVisible() then
-        anchor = UIParent
-    end
-    StartCountdown(anchor, 30)
 end
 
--- Pick the first N visible tracker blocks, sorted by questID for
--- deterministic state assignment. Returns the array of blocks and the
--- total count of visible blocks (count >= N means tracker preview is
--- viable).
-local function PickFirstNBlocks(n)
+-- Build a layout initializer for the preview row. Uses the section-
+-- header template as a base so we get free category-visibility +
+-- styling, then extends it with our dots / labels / tooltips. Returns
+-- nil if the framework can't satisfy the request — caller skips the
+-- row gracefully (preview just doesn't appear).
+local function MakeInlinePreviewInitializer()
+    if not Settings or not Settings.CreateElementInitializer then return nil end
+    local data = { name = "Style preview" }
+    local init = Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", data)
+    if not init then return nil end
+    init.GetExtent = function() return 90 end
+    local origInitFrame = init.InitFrame
+    init.InitFrame = function(self, frame)
+        if origInitFrame then origInitFrame(self, frame) end
+        AttachInlinePreviewDots(frame)
+    end
+    return init
+end
+
+-- ------------------------------------------------------------
+-- On-tracker preview button
+-- ------------------------------------------------------------
+
+local trackerPreviewDots = {}
+local trackerPreviewExpiresAt
+local trackerPreviewTicker
+local trackerPanelHideHooked = false
+
+local function ReleaseTrackerPreview()
+    local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
+    if Indicator and Indicator.Release then
+        for _, d in ipairs(trackerPreviewDots) do Indicator.Release(d) end
+    end
+    wipe(trackerPreviewDots)
+    if trackerPreviewTicker then trackerPreviewTicker:Cancel() end
+    trackerPreviewTicker    = nil
+    trackerPreviewExpiresAt = nil
+end
+
+local function PickVisibleBlocks(maxN)
     local MT = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.MountTracker
     if not MT or not MT.GetVisibleBlocks then return {}, 0 end
     local visible = MT.GetVisibleBlocks()
@@ -151,39 +175,48 @@ local function PickFirstNBlocks(n)
     for qid in pairs(visible) do qids[#qids+1] = qid end
     table.sort(qids)
     local result = {}
-    for i = 1, math.min(n, #qids) do
+    for i = 1, math.min(maxN, #qids) do
         result[i] = visible[qids[i]]
     end
     return result, #qids
 end
 
 local function ShowOrExtendPreview()
-    if not ns.PartySync or not ns.PartySync.UI or not ns.PartySync.UI.Indicator then return end
+    local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
+    local MT        = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.MountTracker
+    if not Indicator or not MT then return end
 
-    -- Already running: just extend the timer.
-    if previewExpiresAt then
-        previewExpiresAt = GetTime() + PREVIEW_DURATION
-        if previewCountdown then
-            previewCountdown:SetText(string.format("Preview ends in %ds", PREVIEW_DURATION))
-        end
+    -- Re-click while running: just extend the timer.
+    if trackerPreviewExpiresAt then
+        trackerPreviewExpiresAt = GetTime() + PREVIEW_DURATION
         return
     end
 
-    -- Try tracker preview first (WYSIWYG); fall back to free-floating
-    -- when there aren't enough tracked quests to assign one per state.
-    local blocks, totalVisible = PickFirstNBlocks(#PREVIEW_STATES)
-    if totalVisible >= #PREVIEW_STATES then
-        ShowTrackerPreview(blocks)
-    else
-        ShowFreePreview()
+    local blocks, total = PickVisibleBlocks(#PREVIEW_STATES)
+    if total == 0 then
+        print("|cffffcc00QuestFocus|r no quests tracked — nothing to preview.")
+        return
     end
 
-    -- Hook the settings-panel close once. Closing the panel stops the
-    -- preview — keeping demo dots running while the panel is invisible
-    -- would be confusing.
-    if not panelHideHooked and SettingsPanel and SettingsPanel.HookScript then
-        SettingsPanel:HookScript("OnHide", HidePreview)
-        panelHideHooked = true
+    for i, block in ipairs(blocks) do
+        local f = Indicator.Acquire()
+        f:SetParent(block)
+        if MT.ApplyAnchorToBlock then MT.ApplyAnchorToBlock(f, block) end
+        Indicator.SetState(f, PREVIEW_STATES[i])
+        trackerPreviewDots[i] = f
+    end
+
+    trackerPreviewExpiresAt = GetTime() + PREVIEW_DURATION
+    trackerPreviewTicker = C_Timer.NewTicker(1, function()
+        if not trackerPreviewExpiresAt then return end
+        if GetTime() >= trackerPreviewExpiresAt then
+            ReleaseTrackerPreview()
+        end
+    end)
+
+    if not trackerPanelHideHooked and SettingsPanel and SettingsPanel.HookScript then
+        SettingsPanel:HookScript("OnHide", ReleaseTrackerPreview)
+        trackerPanelHideHooked = true
     end
 end
 
@@ -305,15 +338,16 @@ function ns.Settings.Register()
         local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
         if not Indicator or not Indicator.SetState then return end
 
-        -- Push size/shape/palette/opacity to every preview dot.
-        for i, dot in ipairs(previewDots) do
+        -- Inline permanent style preview (always-on row in the page).
+        RefreshInlinePreview()
+
+        -- On-tracker preview (button-triggered, temporary).
+        for i, dot in ipairs(trackerPreviewDots) do
             Indicator.SetState(dot, PREVIEW_STATES[i])
         end
-
-        -- For tracker-mode preview, also re-apply the anchor so B3
-        -- changes are visible without restarting the preview.
-        if previewMode == "tracker" and MT and MT.ApplyAnchorToBlock then
-            for _, dot in ipairs(previewDots) do
+        -- Re-apply anchor for tracker preview when position changes.
+        if MT and MT.ApplyAnchorToBlock then
+            for _, dot in ipairs(trackerPreviewDots) do
                 local block = dot:GetParent()
                 if block then MT.ApplyAnchorToBlock(dot, block) end
             end
@@ -397,6 +431,13 @@ function ns.Settings.Register()
         .. "100% is fully opaque.")
     opacitySetting:SetValueChangedCallback(RefreshIndicators)
 
+    -- Inline permanent style preview — a layout-flow row between the
+    -- visual settings and the Preview-on-tracker button.
+    if layout and layout.AddInitializer then
+        local previewInit = MakeInlinePreviewInitializer()
+        if previewInit then layout:AddInitializer(previewInit) end
+    end
+
     -- Solo preview button — sits at the bottom of the PartySync section.
     -- Surfaces a row of 4 demo indicators either on the first 4 tracker
     -- rows (WYSIWYG) or free-floating above the panel as a fallback.
@@ -404,13 +445,13 @@ function ns.Settings.Register()
     if CreateSettingsButtonInitializer and layout and layout.AddInitializer then
         local previewInit = CreateSettingsButtonInitializer(
             "",
-            "Preview indicators (solo, 30s)",
+            "Preview on tracker (30s)",
             ShowOrExtendPreview,
-            "Show four demo indicator dots — one per aggregate state — on real "
-            .. "tracker rows when at least 4 quests are tracked, or above the "
-            .. "settings panel as a fallback. Lets you eyeball size, shape, "
-            .. "position, palette, and opacity changes without joining a party. "
-            .. "Click again to extend the 30s timer.",
+            "Temporarily attaches up to 4 demo indicator dots to your "
+            .. "tracker rows so you can see how the current style looks "
+            .. "in context. Truncates if fewer than 4 quests are tracked; "
+            .. "no-op when nothing is tracked. Click again to extend the "
+            .. "30s timer; closing the settings panel ends the preview.",
             true)
         layout:AddInitializer(previewInit)
     end
