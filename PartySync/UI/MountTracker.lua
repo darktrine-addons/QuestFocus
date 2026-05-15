@@ -125,8 +125,7 @@ local function Refresh()
             indicators[qid] = f
         end
         f:SetParent(block)
-        f:ClearAllPoints()
-        f:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
+        MountTracker.ApplyAnchorToBlock(f, block)
         local state = Aggregate.Compute(qid)
         if ns.PartySync.debug and lastState[qid] ~= state then
             local title = (C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(qid)) or "?"
@@ -225,4 +224,30 @@ function MountTracker.GetQuestIDForBlock(frame)
         frame = parent
     end
     return nil
+end
+
+-- Public: list of live tracker-row blocks keyed by questID. Used by the
+-- Settings panel's solo preview to attach demo dots to real rows.
+function MountTracker.GetVisibleBlocks()
+    return VisibleQuestBlocks()
+end
+
+-- Public: apply the current Config-configured anchor to an indicator
+-- attached to a tracker block. Used by Refresh (for live indicators)
+-- and by the preview (for demo indicators), so anchor changes flow
+-- through one place.
+function MountTracker.ApplyAnchorToBlock(f, block)
+    local anchor = (ns.Config and ns.Config.GetPartySyncSetting
+                    and ns.Config.GetPartySyncSetting("indicatorAnchor")) or "topRight"
+    f:ClearAllPoints()
+    if anchor == "leftOfTitle" and block.HeaderText then
+        -- -30px so the dot clears the row's quest-type icon (campaign
+        -- chevron, exclamation, etc.) instead of overlapping it.
+        f:SetPoint("RIGHT", block.HeaderText, "LEFT", -30, 0)
+    elseif anchor == "rightOfTitle" and block.HeaderText then
+        f:SetPoint("LEFT", block.HeaderText, "RIGHT", 4, 0)
+    else
+        -- topRight (default) — also catches any legacy "topLeft" SV.
+        f:SetPoint("TOPRIGHT", block, "TOPRIGHT", -4, -4)
+    end
 end

@@ -11,6 +11,14 @@ ns.Config = ns.Config or {}
 
 local KNOWN_MODULES = { "ZoneFilter", "PartySync" }
 
+local PARTYSYNC_VISUAL_DEFAULTS = {
+    indicatorSize    = 10,               -- 6 / 8 / 10 / 12 (px)
+    indicatorShape   = "square",         -- "square" | "diamond"
+    indicatorAnchor  = "leftOfTitle",    -- leftOfTitle | rightOfTitle | topRight
+    palette          = "default",        -- "default" | "deuteranopia" | "tritanopia"
+    indicatorOpacity = 1.0,              -- 0.4 .. 1.0
+}
+
 function ns.Config.EnsureDB()
     QuestFocusDB         = QuestFocusDB         or {}
     QuestFocusDB.modules = QuestFocusDB.modules or {}
@@ -19,6 +27,30 @@ function ns.Config.EnsureDB()
             QuestFocusDB.modules[name] = { enabled = true }
         end
     end
+    QuestFocusDB.partySync = QuestFocusDB.partySync or {}
+    for k, v in pairs(PARTYSYNC_VISUAL_DEFAULTS) do
+        if QuestFocusDB.partySync[k] == nil then
+            QuestFocusDB.partySync[k] = v
+        end
+    end
+    -- Migration: "topLeft" anchor was removed (overlapped the quest
+    -- icons); flip any leftover SV value to the default.
+    if QuestFocusDB.partySync.indicatorAnchor == "topLeft" then
+        QuestFocusDB.partySync.indicatorAnchor = "topRight"
+    end
+end
+
+function ns.Config.GetPartySyncSetting(key)
+    if QuestFocusDB and QuestFocusDB.partySync and QuestFocusDB.partySync[key] ~= nil then
+        return QuestFocusDB.partySync[key]
+    end
+    return PARTYSYNC_VISUAL_DEFAULTS[key]
+end
+
+function ns.Config.SetPartySyncSetting(key, value)
+    QuestFocusDB           = QuestFocusDB or {}
+    QuestFocusDB.partySync = QuestFocusDB.partySync or {}
+    QuestFocusDB.partySync[key] = value
 end
 
 function ns.Config.IsModuleEnabled(name)
