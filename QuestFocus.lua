@@ -124,6 +124,22 @@ SlashCmdList.QUESTFOCUS = function(msg)
         ns.ZoneFilter.Apply.Filter(false)
     elseif msg == "filtershift" or msg == "promote" then
         ns.ZoneFilter.Apply.Filter(true)
+    elseif msg == "untrack" or msg == "untrackall" then
+        ns.ZoneFilter.Apply.Mode("untrackAll")
+    elseif msg == "all" or msg == "trackall" then
+        ns.ZoneFilter.Apply.Mode("trackAll")
+    elseif msg == "campaign" or msg == "campaignonly" then
+        ns.ZoneFilter.Apply.Mode("campaignOnly")
+    elseif msg == "daily" or msg == "dailies" then
+        ns.ZoneFilter.Apply.Mode("dailyOnly")
+    elseif msg == "weekly" or msg == "weeklies" then
+        ns.ZoneFilter.Apply.Mode("weekliesOnly")
+    elseif msg == "important" or msg == "importantonly" then
+        ns.ZoneFilter.Apply.Mode("importantOnly")
+    elseif msg == "ready" or msg == "turnin" then
+        ns.ZoneFilter.Apply.Mode("readyOnly")
+    elseif msg == "inprogress" then
+        ns.ZoneFilter.Apply.Mode("inProgressOnly")
     elseif msg == "revert" then
         ns.ZoneFilter.Revert.Revert()
     elseif msg == "status" then
@@ -132,6 +148,10 @@ SlashCmdList.QUESTFOCUS = function(msg)
         print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
             tostring(active), restorable))
     else
-        print("|cffffcc00QuestFocus|r commands: |cffffff88/qf|r [filter] | promote | revert | status | module list | module enable|disable <name> | party debug | party broadcast on|off")
+        print("|cffffcc00QuestFocus|r commands:")
+        print("  |cffffff88/qf|r [filter] | promote | revert | status")
+        print("  Modes: |cffffff88/qf|r all | untrack | campaign | daily | weekly | important | ready | inprogress")
+        print("  |cffffff88/qf|r module list | module enable|disable <name>")
+        print("  |cffffff88/qf|r party debug | party broadcast on|off")
     end
 end

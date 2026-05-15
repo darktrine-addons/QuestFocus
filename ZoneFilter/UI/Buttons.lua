@@ -117,6 +117,7 @@ local function FilterTooltip()
         end
     end
     GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("|cffaaaaaaRight-click: more tracker modes|r", 1, 1, 1, true)
     GameTooltip:AddLine("|cffaaaaaaShift-Right-click: open settings|r", 1, 1, 1, true)
 end
 
@@ -146,7 +147,7 @@ end
 -- Button factory
 -- ============================================================
 
-local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor)
+local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor, onRightClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(18, 18)
 
@@ -161,12 +162,14 @@ local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor)
 
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetScript("OnClick", function(self, button)
-        -- Shift-Right-click opens the Settings panel. Works in combat
-        -- (no protected calls), available on either button of the pair
-        -- so the user has it wherever they reach.
         if button == "RightButton" then
-            if IsShiftKeyDown() and ns.Settings and ns.Settings.Open then
-                ns.Settings.Open()
+            -- Shift-Right-click → Settings panel (always available).
+            -- Plain Right-click → optional onRightClick (mode menu on
+            -- the filter button; no-op on revert).
+            if IsShiftKeyDown() then
+                if ns.Settings and ns.Settings.Open then ns.Settings.Open() end
+            elseif onRightClick then
+                onRightClick(self)
             end
             return
         end
@@ -198,6 +201,75 @@ local function MakeButton(parent, atlas, onClick, tooltipFn, tooltipAnchor)
 end
 
 -- ============================================================
+-- Right-click context menu on the filter button — surfaces the
+-- alternate tracker modes from Apply.Mode plus a Settings entry.
+-- ============================================================
+
+local function ShowModeMenu(button)
+    if not MenuUtil or not MenuUtil.CreateContextMenu then
+        print("|cffffcc00QuestFocus|r menu API unavailable on this client.")
+        return
+    end
+    MenuUtil.CreateContextMenu(button, function(owner, root)
+        root:CreateTitle("Tracker modes")
+
+        -- Broadest first.
+        root:CreateButton("Track all quests in log", function()
+            ns.ZoneFilter.Apply.Mode("trackAll")
+        end)
+
+        root:CreateDivider()
+
+        -- Zone filter (also accessible via the button's left/shift-left).
+        root:CreateButton("Track current zone (Focus)", function()
+            ns.ZoneFilter.Apply.Filter(false)
+        end)
+        root:CreateButton("Track current zone + promote from log", function()
+            ns.ZoneFilter.Apply.Filter(true)
+        end)
+
+        root:CreateDivider()
+
+        -- By quest type.
+        root:CreateButton("Track campaign quests only", function()
+            ns.ZoneFilter.Apply.Mode("campaignOnly")
+        end)
+        root:CreateButton("Track daily quests only", function()
+            ns.ZoneFilter.Apply.Mode("dailyOnly")
+        end)
+        root:CreateButton("Track weeklies only", function()
+            ns.ZoneFilter.Apply.Mode("weekliesOnly")
+        end)
+        root:CreateButton("Track Important quests only", function()
+            ns.ZoneFilter.Apply.Mode("importantOnly")
+        end)
+
+        root:CreateDivider()
+
+        -- By quest state.
+        root:CreateButton("Track ready-to-turn-in only", function()
+            ns.ZoneFilter.Apply.Mode("readyOnly")
+        end)
+        root:CreateButton("Track in-progress only", function()
+            ns.ZoneFilter.Apply.Mode("inProgressOnly")
+        end)
+
+        root:CreateDivider()
+
+        -- Destructive.
+        root:CreateButton("Untrack everything", function()
+            ns.ZoneFilter.Apply.Mode("untrackAll")
+        end)
+
+        root:CreateDivider()
+
+        root:CreateButton("Open settings…", function()
+            if ns.Settings and ns.Settings.Open then ns.Settings.Open() end
+        end)
+    end)
+end
+
+-- ============================================================
 -- Public: create a filter/revert pair parented to `parent`.
 -- Caller is responsible for SetPoint-ing the returned filterBtn.
 -- The revertBtn is anchored to the filterBtn's LEFT automatically.
@@ -211,7 +283,8 @@ function ns.ZoneFilter.UI.MakePair(parent, opts)
     local filterBtn = MakeButton(parent, "common-icon-zoomin",
         function(addFromLog) ns.ZoneFilter.Apply.Filter(addFromLog) end,
         FilterTooltip,
-        tooltipAnchor)
+        tooltipAnchor,
+        ShowModeMenu)
 
     local revertBtn = MakeButton(parent, "common-icon-undo",
         function() ns.ZoneFilter.Revert.Revert() end,  -- shift state ignored on revert
