@@ -144,6 +144,12 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 
 ## Changelog
 
+### v0.9.1-beta
+
+**Behind the scenes:**
+
+- Activate the CurseForge and Wago publishing pipeline (project IDs wired into the TOC). No functional changes.
+
 ### v0.9.0-beta
 
 **New features:**
