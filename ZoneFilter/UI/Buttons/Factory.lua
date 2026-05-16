@@ -205,7 +205,11 @@ function ns.ZoneFilter.UI.MakePair(parent, opts)
         end,
         T.Reapply,
         tooltipAnchor)
-    reapplyBtn:SetPoint("RIGHT", revertBtn, "LEFT", -gap, 0)
+    -- Triangular layout: re-apply sits ABOVE, centered over the gap
+    -- between revert (left) and filter (right). Extending leftward made
+    -- the trio overflow the quest log frame edge; going up uses the
+    -- empty area above the pair.
+    reapplyBtn:SetPoint("BOTTOM", revertBtn, "TOPRIGHT", 1, gap)
     if reapplyBtn.icon then
         reapplyBtn.icon:SetVertexColor(0.4, 1.0, 0.4)
     end

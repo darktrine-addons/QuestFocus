@@ -11,12 +11,28 @@ ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 local Menu = {}
 ns.ZoneFilter.UI.Menu = Menu
 
-local function FormatModeLabel(label, count)
+-- opts:
+--   binding     — string like "Left-click" / "Shift+Left-click" shown as
+--                 a grey prefix in front of the label (zoneFilter rows only)
+--   activeState — nil (not active) | "clean" (green marker) | "drift"
+--                 (orange marker) — appended after the count
+local function FormatModeLabel(label, count, opts)
+    opts = opts or {}
     local WARN_ICON = ns.ZoneFilter.UI.WARN_ICON
-    if count == 0 then
-        return string.format("%s |cffaaaaaa(0)|r %s", label, WARN_ICON)
+    local prefix = ""
+    if opts.binding and opts.binding ~= "" then
+        prefix = string.format("|cffaaaaaa[%s]|r ", opts.binding)
     end
-    return string.format("%s |cffaaaaaa(%d)|r", label, count)
+    local suffix = ""
+    if opts.activeState == "clean" then
+        suffix = " |cff44ff44(active)|r"
+    elseif opts.activeState == "drift" then
+        suffix = " |cffff8c26(drifted)|r"
+    end
+    if count == 0 then
+        return string.format("%s%s |cffaaaaaa(0)|r %s%s", prefix, label, WARN_ICON, suffix)
+    end
+    return string.format("%s%s |cffaaaaaa(%d)|r%s", prefix, label, count, suffix)
 end
 
 function Menu.Show(button)
@@ -25,20 +41,35 @@ function Menu.Show(button)
         return
     end
     local Apply     = ns.ZoneFilter.Apply
+    local State     = ns.ZoneFilter.State
     local WARN_ICON = ns.ZoneFilter.UI.WARN_ICON
+
+    -- Active-state lookup: returns "clean" / "drift" / nil for a mode
+    -- so the row can show its current marker.
+    local activeMode = State and State.GetLastMode and State.GetLastMode()
+    local active     = State and State.GetFilterActive and State.GetFilterActive()
+    local dirty      = State and State.IsDirty and State.IsDirty()
+    local function activeStateFor(modeName)
+        if not active or activeMode ~= modeName then return nil end
+        return dirty and "drift" or "clean"
+    end
 
     MenuUtil.CreateContextMenu(button, function(owner, root)
         root:CreateTitle("Tracker modes")
 
-        local function addModeItem(label, modeName)
+        local function addModeItem(label, modeName, opts)
+            opts = opts or {}
+            opts.activeState = activeStateFor(modeName)
             local count = Apply.CountForMode and Apply.CountForMode(modeName) or 0
-            root:CreateButton(FormatModeLabel(label, count), function()
+            root:CreateButton(FormatModeLabel(label, count, opts), function()
                 ns.ZoneFilter.Apply.Mode(modeName)
             end)
         end
-        local function addFilterItem(label, addFromLog)
+        local function addFilterItem(label, addFromLog, opts)
+            opts = opts or {}
+            opts.activeState = activeStateFor("zoneFilter")
             local count = Apply.CountForFilter and Apply.CountForFilter(addFromLog) or 0
-            root:CreateButton(FormatModeLabel(label, count), function()
+            root:CreateButton(FormatModeLabel(label, count, opts), function()
                 ns.ZoneFilter.Apply.Filter(addFromLog)
             end)
         end
@@ -48,9 +79,9 @@ function Menu.Show(button)
 
         root:CreateDivider()
 
-        -- Zone filter (also accessible via the button's left/shift-left).
-        addFilterItem("Track current zone (Focus)",                  false)
-        addFilterItem("Track current zone + promote from log",       true)
+        -- Zone filter — also bound to the button's left/shift-left clicks.
+        addFilterItem("Track current zone (Focus)",            false, { binding = "Left-click" })
+        addFilterItem("Track current zone + promote from log", true,  { binding = "Shift+Left-click" })
 
         root:CreateDivider()
 

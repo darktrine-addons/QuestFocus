@@ -36,47 +36,65 @@ function Tooltips.Filter()
     local lastMode = State.GetLastMode and State.GetLastMode()
     local nonZone  = lastMode and lastMode ~= "zoneFilter"
 
-    -- 1. Title. Greyed when a non-zone mode is active — the lens's
-    --    "Focus" identity isn't what's currently driving the tracker,
-    --    so we visually defer to the active mode rather than asserting
-    --    the lens's name.
-    if nonZone then
-        GameTooltip:SetText("Focus (zone filter)", 0.55, 0.55, 0.55)
+    -- State-centric headline. The button's identity (it's the lens =
+    -- zone-filter action) is implicit from the click-prediction body
+    -- below; the headline answers "what's the filter doing right now?".
+    -- Colour matches the lens dot state for visual consistency.
+    local titleText, tr, tg, tb
+    if not active then
+        titleText  = "No filter"
+        tr, tg, tb = 1, 0.82, 0       -- default tooltip gold
+    elseif dirty then
+        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or "active"
+        local addN      = State.GetDriftAddCount()
+        local rmN       = State.GetDriftRemoveCount and State.GetDriftRemoveCount() or 0
+        local driftStr
+        if addN > 0 and rmN > 0 then driftStr = string.format("%d added, %d removed", addN, rmN)
+        elseif addN > 0           then driftStr = string.format("%d added",            addN)
+        else                            driftStr = string.format("%d removed",          rmN) end
+        titleText  = string.format("Filter: %s (%s)", modeLabel, driftStr)
+        tr, tg, tb = 1.0, 0.55, 0.15  -- orange (drift)
     else
-        GameTooltip:SetText("Focus (zone filter)", 1, 0.82, 0)
+        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or "active"
+        titleText  = string.format("Filter: %s", modeLabel)
+        tr, tg, tb = 0.40, 1.0, 0.40  -- green (clean)
     end
+    GameTooltip:SetText(titleText, tr, tg, tb)
     -- Widen so warning-suffixed lines and the legend don't wrap.
     if GameTooltip.SetMinimumWidth then GameTooltip:SetMinimumWidth(280) end
 
-    -- 2. State: mode + drift in one line.
+    -- Short description below the headline only when inactive — gives
+    -- new users orientation. Once a filter is active, this would be
+    -- redundant with the click-prediction lines below.
     if not active then
         GameTooltip:AddLine("Narrow your watch list to quests with objectives in this zone.",
             0.75, 0.75, 0.75, true)
-    else
-        local modeLabel = (lastMode and (UI.MODE_DISPLAY[lastMode] or lastMode)) or "active"
-        if dirty then
-            local addN = State.GetDriftAddCount()
-            local rmN  = State.GetDriftRemoveCount and State.GetDriftRemoveCount() or 0
-            local driftStr
-            if addN > 0 and rmN > 0 then
-                driftStr = string.format("%d added / %d removed", addN, rmN)
-            elseif addN > 0 then
-                driftStr = string.format("%d added", addN)
-            else
-                driftStr = string.format("%d removed", rmN)
-            end
-            GameTooltip:AddLine(string.format("Current mode: |cffffcc00%s|r — |cffff8c26%s since|r",
-                modeLabel, driftStr), 1, 1, 1, true)
-        else
-            GameTooltip:AddLine(string.format("Current mode: |cffffcc00%s|r — |cff44ff44clean|r", modeLabel),
-                1, 1, 1, true)
-        end
     end
 
     -- 3. Click predictions.
+    --
+    -- Format (consistent across active/inactive/non-zone):
+    --   |cffff9919Left-Click|r: Focus current zone (-N) (T tracked) [WARN]
+    --   |cffff9919Shift-Left-Click|r: Focus current zone + promote (-N / +M) (T tracked) [WARN]
+    --
+    -- Colours: light orange "hint-keyword" prefix (matches NosyKeys /
+    -- Broker_PlayerCoords tooltip convention), red -N, green +M, grey
+    -- "(T tracked)". WARN_ICON appended only when T == 0.
     GameTooltip:AddLine(" ")
     local untrack, promote, mapKnown = PredictFilterDelta()
     local anyZeroResult = false
+
+    local KEY_BINDING = "|cffff9919%s|r"
+
+    local function FormatDelta(untrackN, promoteN)
+        if untrackN == 0 and promoteN == 0 then
+            return "|cffaaaaaa(no changes)|r"
+        end
+        local parts = {}
+        if untrackN > 0 then parts[#parts+1] = string.format("|cffff7777-%d|r", untrackN) end
+        if promoteN > 0 then parts[#parts+1] = string.format("|cff77ff77+%d|r", promoteN) end
+        return "(" .. table.concat(parts, " / ") .. ")"
+    end
 
     if not mapKnown then
         GameTooltip:AddLine("|cffaaaaaaCurrent zone unknown — open the world map once.|r",
@@ -88,31 +106,19 @@ function Tooltips.Filter()
         local shiftWarn  = (shiftCount == 0) and (" " .. UI.WARN_ICON) or ""
         if clickCount == 0 or shiftCount == 0 then anyZeroResult = true end
 
-        if nonZone then
-            GameTooltip:AddLine(string.format("Click: switch to zone -> |cffaaaaaa%d watched|r%s",
-                clickCount, clickWarn), 1, 1, 1, false)
-            GameTooltip:AddLine(string.format("Shift: zone + promote log -> |cffaaaaaa%d watched|r%s",
-                shiftCount, shiftWarn), 1, 1, 1, false)
-        else
-            if untrack == 0 then
-                GameTooltip:AddLine("Click: |cffaaaaaano changes|r", 1, 1, 1, false)
-            else
-                GameTooltip:AddLine(string.format("Click: -%d -> |cffaaaaaa%d watched|r%s",
-                    untrack, clickCount, clickWarn), 1, 1, 1, false)
-            end
-            if untrack == 0 and promote == 0 then
-                GameTooltip:AddLine("Shift: |cffaaaaaano changes|r", 1, 1, 1, false)
-            elseif promote == 0 then
-                GameTooltip:AddLine(string.format("Shift: -%d -> |cffaaaaaa%d watched|r%s",
-                    untrack, shiftCount, shiftWarn), 1, 1, 1, false)
-            elseif untrack == 0 then
-                GameTooltip:AddLine(string.format("Shift: +%d -> |cffaaaaaa%d watched|r%s",
-                    promote, shiftCount, shiftWarn), 1, 1, 1, false)
-            else
-                GameTooltip:AddLine(string.format("Shift: -%d / +%d -> |cffaaaaaa%d watched|r%s",
-                    untrack, promote, shiftCount, shiftWarn), 1, 1, 1, false)
-            end
-        end
+        -- Plain left-click: narrow only (no promote).
+        GameTooltip:AddLine(string.format("%s: Focus current zone %s |cffaaaaaa(%d tracked)|r%s",
+            string.format(KEY_BINDING, "Left-Click"),
+            FormatDelta(untrack, 0),
+            clickCount,
+            clickWarn), 1, 1, 1, false)
+
+        -- Shift-left-click: narrow + promote from log.
+        GameTooltip:AddLine(string.format("%s: Focus current zone + promote %s |cffaaaaaa(%d tracked)|r%s",
+            string.format(KEY_BINDING, "Shift-Left-Click"),
+            FormatDelta(untrack, promote),
+            shiftCount,
+            shiftWarn), 1, 1, 1, false)
     end
 
     -- 4. Re-apply hint.

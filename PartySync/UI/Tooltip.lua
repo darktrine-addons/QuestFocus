@@ -97,12 +97,20 @@ local function AppendMemberRow(tooltip, name, class, state, player)
 end
 
 -- Append our party section to `tooltip` for the given questID. No-op
--- when solo or PartySync inactive.
+-- when solo or PartySync inactive, or when the group size meets the
+-- D5 raid threshold (per-member list would be too long).
 function Tooltip.AppendForQuest(tooltip, questID)
     if ns.PartySync.active == false then return end
     if not questID or not IsInGroup() then return end
     local Fetch = ns.PartySync.Fetch
     if not Fetch then return end
+
+    -- D5: suppress in large groups (configurable threshold).
+    local threshold = (ns.Config and ns.Config.GetPartySyncSetting
+                       and ns.Config.GetPartySyncSetting("raidThreshold")) or 0
+    if threshold > 0 and (GetNumGroupMembers() or 0) >= threshold then
+        return
+    end
 
     tooltip:AddLine(" ")
     tooltip:AddLine("Party state:", 0.82, 0.82, 0.82)

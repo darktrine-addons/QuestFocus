@@ -55,16 +55,29 @@ local function GetPartymateUnits()
     return units
 end
 
+-- Quest types where party-state has no meaningful semantics — account-
+-- wide warband quests and bonus-objective tasks. Extend this list as
+-- additional non-shareable types surface in real play. Permissive by
+-- default: only DECLINE for known-non-shareable types.
+local function IsShareableQuestType(info)
+    if not info then return true end
+    if info.isAccountQuest then return false end
+    if info.isTask         then return false end
+    return true
+end
+
 -- Main entry point. Returns one of the five values listed at the top
 -- of this file. See §5.3 of the design doc for the priority logic.
 function Aggregate.Compute(questID)
     if not questID then return nil end
 
     -- Caller must have the quest in their log; nothing to aggregate otherwise.
-    if not C_QuestLog.GetLogIndexForQuestID or
-       not C_QuestLog.GetLogIndexForQuestID(questID) then
-        return nil
-    end
+    local logIdx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
+    if not logIdx then return nil end
+
+    -- D4: non-shareable quest types get no indicator at all.
+    local info = C_QuestLog.GetInfo and C_QuestLog.GetInfo(logIdx)
+    if not IsShareableQuestType(info) then return nil end
 
     -- Solo → no aggregation.
     if not IsInGroup() then return nil end

@@ -460,6 +460,23 @@ function ns.Settings.Register()
         .. "100% is fully opaque.")
     opacitySetting:SetValueChangedCallback(RefreshIndicators)
 
+    -- D5: raid threshold — suppress per-member tooltip in large groups.
+    local raidThresholdSetting = Settings.RegisterAddOnSetting(
+        category, "QuestFocus_PS_RaidThreshold", "raidThreshold",
+        QuestFocusDB.partySync, Settings.VarType.Number, "Suppress tooltip in large groups", 10)
+    Settings.CreateDropdown(category, raidThresholdSetting,
+        function()
+            local c = Settings.CreateControlTextContainer()
+            c:Add(0,  "Always show")
+            c:Add(10, "Hide at 10+ members")
+            c:Add(20, "Hide at 20+ members")
+            return c:GetData()
+        end,
+        "In larger groups the per-member 'Party state' tooltip list would "
+        .. "be too long. Once the group size meets the threshold, the "
+        .. "tooltip's PartySync section is suppressed. Indicator dots "
+        .. "still show as usual.")
+
     -- Inline permanent style preview — a layout-flow row between the
     -- visual settings and the Preview-on-tracker button.
     if layout and layout.AddInitializer then

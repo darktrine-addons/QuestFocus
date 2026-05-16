@@ -17,6 +17,7 @@ local PARTYSYNC_VISUAL_DEFAULTS = {
     indicatorAnchor  = "leftOfTitle",    -- leftOfTitle | rightOfTitle | topRight
     palette          = "default",        -- "default" | "deuteranopia" | "tritanopia"
     indicatorOpacity = 1.0,              -- 0.4 .. 1.0
+    raidThreshold    = 10,               -- 0 (always show) | 10 | 20 — D5: suppress tooltip in large groups
 }
 
 function ns.Config.EnsureDB()

@@ -97,6 +97,15 @@ Earlier drafts of this module assumed we'd need a custom `CHAT_MSG_ADDON` channe
 /qf revert                   restore pre-filter watch list (merge semantics)
 /qf status                   print filter active / restorable counts
 
+/qf all                      track every quest in the log
+/qf untrack                  untrack everything
+/qf campaign                 track only campaign quests
+/qf daily                    track only daily quests
+/qf weekly                   track only weekly quests
+/qf important                track only Important quests (purple triangle)
+/qf ready                    track only ready-to-turn-in quests
+/qf inprogress               track only in-progress quests
+
 /qf module list              show enable/active state of both modules
 /qf module enable <name>     enable a module (PartySync applies live; ZoneFilter needs /reload)
 /qf module disable <name>    disable a module
@@ -111,7 +120,6 @@ Earlier drafts of this module assumed we'd need a custom `CHAT_MSG_ADDON` channe
 
 ## What it doesn't do
 
-- No settings panel — slash commands only for now.
 - ZoneFilter has no auto-on-zone-change mode (yet).
 - PartySync covers the tracker rows only — no world-map quest log indicators.
 - PartySync does not broadcast or interpret addon-channel messages.
@@ -122,6 +130,21 @@ Earlier drafts of this module assumed we'd need a custom `CHAT_MSG_ADDON` channe
 ---
 
 ## Changelog
+
+### v0.9.0-beta
+
+Phase 2 polish + tracker modes + architecture cleanup.
+
+- **Native AddOn settings panel** — Settings → AddOns → QuestFocus. Sections for Global (module toggles + Reload UI) and PartySync (size, shape, position, palette, opacity, raid threshold). Shift-Right-click any of the filter buttons opens the panel.
+- **PartySync visual settings** — indicator size (6/8/10/12 px), shape (square/diamond), anchor position (top-right / right-of-title / left-of-title with quest-icon clearance), three colour palettes (default / deuteranopia-friendly / tritanopia-friendly), opacity slider (40%–100%), in-pane style preview + on-tracker preview button.
+- **Tracker modes via right-click menu** on the focus (lens) button — Track all / current zone / current zone + promote / campaign / daily / weekly / Important (purple-triangle quests, TWW 11.0.2+ API) / ready-to-turn-in / in-progress / Untrack everything. Each entry previews the resulting watch count; entries that would empty the tracker flag a yellow warning. The active mode is annotated `(active)` / `(drifted)` in real time.
+- **Conditional re-apply button** — when a non-zone mode is active and the watch list drifts, a third green button appears centred above revert and lens so a single click restores the mode's clean state. Triangular layout avoids overflowing the world-map frame edge.
+- **State-centric lens tooltip** — headline reads "No filter" / "Filter: \<mode\>" / "Filter: \<mode\> (N added, M removed)" with the colour matching the lens dot (gold / green / orange). Click-binding lines now use the convention: `Left-Click: Focus current zone (-N) (T tracked)`.
+- **Snapshot hygiene** — completed and abandoned quests are pruned from the filter snapshot/target automatically. Optional per-character setting "Manual un-track also clears the snapshot" makes manual un-tracks survive revert (off by default = strict revert).
+- **Drift pulse** — the lens icon flashes briefly when the filter transitions from clean to dirty.
+- **Architecture cleanup** — state model consolidated into a single `currentApplication` struct with three mutators (transition / extend / clear) and migration from the previous flat-field shape. `Apply.Filter` consolidated into `Apply.Mode` via a `zoneFilter` predicate, eliminating ~90 LOC of duplicated logic. `Buttons.lua` (~450 LOC) split into focused files (`Constants.lua`, `Tooltips.lua`, `Menu.lua`, `Factory.lua`).
+- **Non-shareable quest types** — PartySync indicators no longer attach to account-shared or bonus-objective quests.
+- **Raid threshold** — in groups of 10+ members the per-member tooltip section is suppressed automatically. Configurable to 0 / 10 / 20.
 
 ### v0.3.0-beta
 
