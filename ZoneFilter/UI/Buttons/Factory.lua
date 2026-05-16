@@ -19,6 +19,30 @@ ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 local instances = {}
 
 -- ============================================================
+-- D3: clean → dirty pulse
+-- ============================================================
+
+-- Two-stage alpha animation on the lens icon. Plays once when the
+-- filter transitions from clean to dirty, drawing attention without
+-- being persistent. AnimationGroup is built lazily per icon.
+local function PulseLensIcon(icon)
+    if not icon then return end
+    if not icon.qfPulseAG then
+        local ag = icon:CreateAnimationGroup()
+        local a1 = ag:CreateAnimation("Alpha")
+        a1:SetFromAlpha(1); a1:SetToAlpha(0.3)
+        a1:SetDuration(0.25); a1:SetSmoothing("OUT"); a1:SetOrder(1)
+        local a2 = ag:CreateAnimation("Alpha")
+        a2:SetFromAlpha(0.3); a2:SetToAlpha(1)
+        a2:SetDuration(0.25); a2:SetSmoothing("IN"); a2:SetOrder(2)
+        ag:SetScript("OnFinished", function() icon:SetAlpha(1) end)
+        icon.qfPulseAG = ag
+    end
+    if icon.qfPulseAG:IsPlaying() then return end
+    icon.qfPulseAG:Play()
+end
+
+-- ============================================================
 -- Visual state refresh
 -- ============================================================
 
@@ -29,6 +53,15 @@ local function UpdateOne(inst)
     local dirty    = State.IsDirty()
     local count    = State.GetRevertAddCount()
     local lastMode = State.GetLastMode and State.GetLastMode()
+
+    -- D3: detect transitions from clean (or inactive) into dirty so we
+    -- can pulse the lens icon once. _wasDirty lives on the inst table
+    -- (addon-owned, taint-safe).
+    local nowDirty = active and dirty
+    if nowDirty and not inst._wasDirty and not InCombatLockdown() then
+        PulseLensIcon(inst.filterBtn.icon)
+    end
+    inst._wasDirty = nowDirty
 
     -- Filter button colour. Combat handler greys all icons on
     -- PLAYER_REGEN_DISABLED; we restore colour only out of combat.

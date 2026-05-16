@@ -328,6 +328,35 @@ function ns.Settings.Register()
     end
 
     -- ===========================================================
+    -- Section: ZoneFilter (behaviour preferences, per-character)
+    -- ===========================================================
+    AddSectionHeader("ZoneFilter")
+
+    -- D1: per-character "untrack also clears the snapshot".
+    QuestFocusCharDB.zoneFilter = QuestFocusCharDB.zoneFilter or {}
+    if QuestFocusCharDB.zoneFilter.untrackClearsSnapshot == nil then
+        QuestFocusCharDB.zoneFilter.untrackClearsSnapshot = false
+    end
+    local untrackClearsSetting = Settings.RegisterAddOnSetting(
+        category,
+        "QuestFocus_ZF_UntrackClears",
+        "untrackClearsSnapshot",
+        QuestFocusCharDB.zoneFilter,
+        Settings.VarType.Boolean,
+        "Manual un-track also clears the snapshot",
+        false)
+    Settings.CreateCheckbox(
+        category,
+        untrackClearsSetting,
+        "When checked, manually un-tracking a quest while a filter is "
+        .. "active also removes it from the snapshot. A later revert "
+        .. "will then respect that choice and won't restore the quest. "
+        .. "Per-character.\n\n"
+        .. "|cffaaaaaaDefault off preserves strict revert: the snapshot is "
+        .. "restored exactly as it was taken, regardless of interim "
+        .. "manual changes.|r")
+
+    -- ===========================================================
     -- Section: PartySync (visual settings)
     -- ===========================================================
     AddSectionHeader("PartySync")

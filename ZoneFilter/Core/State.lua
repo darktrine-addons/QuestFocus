@@ -20,9 +20,10 @@
 --   revertAddCount     = |snapshot ∖ current|   -- how many quests revert would re-track
 --   revertTarget       = snapshot ∪ driftAdds   -- merge-revert semantics
 --
--- Only three functions mutate currentApplication:
+-- Four functions mutate currentApplication:
 --   TransitionToMode(modeName, target)  — first-apply or re-apply
 --   ExtendTarget(qid)                   — add one quest to the active target
+--   PruneQuest(qid)                     — remove one quest from snapshot + target
 --   ClearFilter()                       — discard everything
 
 local addonName, ns = ...
@@ -117,6 +118,19 @@ end
 
 function State.ClearFilter()
     QuestFocusCharDB.currentApplication = nil
+end
+
+-- Remove a single questID from snapshot AND target. Used by quest-log
+-- hygiene (QUEST_TURNED_IN / QUEST_REMOVED) so abandoned/completed
+-- quests don't linger in SV indefinitely, and by the optional
+-- untrackClearsSnapshot setting so manual un-tracks become permanent.
+-- No-op when no filter is active.
+function State.PruneQuest(questID)
+    if not questID then return end
+    local app = QuestFocusCharDB and QuestFocusCharDB.currentApplication
+    if not app then return end
+    if app.snapshot then app.snapshot[questID] = nil end
+    if app.target   then app.target[questID]   = nil end
 end
 
 -- ============================================================

@@ -21,6 +21,8 @@ local PARTYSYNC_VISUAL_DEFAULTS = {
 
 function ns.Config.EnsureDB()
     QuestFocusDB         = QuestFocusDB         or {}
+    QuestFocusCharDB     = QuestFocusCharDB     or {}
+
     QuestFocusDB.modules = QuestFocusDB.modules or {}
     for _, name in ipairs(KNOWN_MODULES) do
         if QuestFocusDB.modules[name] == nil then
@@ -37,6 +39,13 @@ function ns.Config.EnsureDB()
     -- icons); flip any leftover SV value to the default.
     if QuestFocusDB.partySync.indicatorAnchor == "topLeft" then
         QuestFocusDB.partySync.indicatorAnchor = "topRight"
+    end
+
+    -- Per-character ZoneFilter settings — behavior preferences that
+    -- follow the character, not the account.
+    QuestFocusCharDB.zoneFilter = QuestFocusCharDB.zoneFilter or {}
+    if QuestFocusCharDB.zoneFilter.untrackClearsSnapshot == nil then
+        QuestFocusCharDB.zoneFilter.untrackClearsSnapshot = false
     end
 end
 
