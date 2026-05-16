@@ -133,18 +133,32 @@ Earlier drafts of this module assumed we'd need a custom `CHAT_MSG_ADDON` channe
 
 ### v0.9.0-beta
 
-Phase 2 polish + tracker modes + architecture cleanup.
+**New features:**
 
-- **Native AddOn settings panel** — Settings → AddOns → QuestFocus. Sections for Global (module toggles + Reload UI) and PartySync (size, shape, position, palette, opacity, raid threshold). Shift-Right-click any of the filter buttons opens the panel.
-- **PartySync visual settings** — indicator size (6/8/10/12 px), shape (square/diamond), anchor position (top-right / right-of-title / left-of-title with quest-icon clearance), three colour palettes (default / deuteranopia-friendly / tritanopia-friendly), opacity slider (40%–100%), in-pane style preview + on-tracker preview button.
-- **Tracker modes via right-click menu** on the focus (lens) button — Track all / current zone / current zone + promote / campaign / daily / weekly / Important (purple-triangle quests, TWW 11.0.2+ API) / ready-to-turn-in / in-progress / Untrack everything. Each entry previews the resulting watch count; entries that would empty the tracker flag a yellow warning. The active mode is annotated `(active)` / `(drifted)` in real time.
-- **Conditional re-apply button** — when a non-zone mode is active and the watch list drifts, a third green button appears centred above revert and lens so a single click restores the mode's clean state. Triangular layout avoids overflowing the world-map frame edge.
-- **State-centric lens tooltip** — headline reads "No filter" / "Filter: \<mode\>" / "Filter: \<mode\> (N added, M removed)" with the colour matching the lens dot (gold / green / orange). Click-binding lines now use the convention: `Left-Click: Focus current zone (-N) (T tracked)`.
-- **Snapshot hygiene** — completed and abandoned quests are pruned from the filter snapshot/target automatically. Optional per-character setting "Manual un-track also clears the snapshot" makes manual un-tracks survive revert (off by default = strict revert).
-- **Drift pulse** — the lens icon flashes briefly when the filter transitions from clean to dirty.
-- **Architecture cleanup** — state model consolidated into a single `currentApplication` struct with three mutators (transition / extend / clear) and migration from the previous flat-field shape. `Apply.Filter` consolidated into `Apply.Mode` via a `zoneFilter` predicate, eliminating ~90 LOC of duplicated logic. `Buttons.lua` (~450 LOC) split into focused files (`Constants.lua`, `Tooltips.lua`, `Menu.lua`, `Factory.lua`).
-- **Non-shareable quest types** — PartySync indicators no longer attach to account-shared or bonus-objective quests.
-- **Raid threshold** — in groups of 10+ members the per-member tooltip section is suppressed automatically. Configurable to 0 / 10 / 20.
+- **Native settings panel.** Find QuestFocus under *Escape → Options → AddOns → QuestFocus*. Or Shift-Right-click any of the filter buttons.
+- **Tracker mode menu.** Right-click the focus (🔍) button to pick from nine one-click tracker modes: *Track all*, *Track current zone*, *Track current zone + promote from log*, *Track campaign quests only*, *Track daily quests only*, *Track weeklies only*, *Track Important quests only* (the purple-triangle quests Blizzard marks), *Track ready-to-turn-in only*, *Track in-progress only*, *Untrack everything*. Each entry previews how many quests it would track and flags actions that would empty the tracker.
+- **Active-mode awareness.** The menu shows which mode is currently in effect (`(active)` in green, `(drifted)` in orange). The lens tooltip headline now reads what the filter is doing right now — *No filter*, *Filter: weeklies only*, *Filter: campaign quests only (1 added)*, etc. — colour-matched to the lens dot.
+- **Re-apply button** appears between the revert and lens buttons when a tracker mode is active and the watch list has drifted. One click cleans the drift without leaving the current mode. Hidden otherwise.
+- **PartySync visual settings.** Tune indicator dots in the settings panel: size (6 / 8 / 10 / 12 px), shape (square / diamond), position (top-right corner / right of title / left of title), three colour palettes including red-green-friendly and blue-yellow-friendly variants, and a 40 %–100 % opacity slider. Inline style preview shows the current look; on-tracker preview button previews on real rows.
+- **Quest-log autopilot.** Quests that complete or get abandoned are removed from filter state automatically.
+
+**Improvements:**
+
+- **Optional revert behaviour:** new per-character setting *Manual un-track also clears the snapshot*. When on, manually un-tracking a quest while a filter is active means revert won't restore it. Off by default (preserves the original behaviour where revert restores the exact pre-filter watch list).
+- **Drift pulse.** When the filter transitions from clean to dirty (e.g. a new quest is auto-tracked while a filter is active), the lens icon briefly flashes to draw attention.
+- **Raid handling.** In groups of 10 + members the per-member tooltip section is hidden automatically (it'd be too long). Indicator dots still show. Configurable threshold: always show / hide at 10 + / hide at 20 +.
+- **Quest-icon clearance.** *Left of title text* indicator position now offsets 30 px to clear the quest-type icon column instead of overlapping it.
+- **Click-binding hints in the menu** — the two zone-filter rows are labelled `[Left-click]` and `[Shift+Left-click]` so it's obvious which menu entry corresponds to which keyboard shortcut.
+- **Slash commands** for every tracker mode: `/qf all`, `/qf untrack`, `/qf campaign`, `/qf daily`, `/qf weekly`, `/qf important`, `/qf ready`, `/qf inprogress` (existing `/qf`, `/qf promote`, `/qf revert`, `/qf status` still work).
+
+**Fixes:**
+
+- The triangular re-apply button no longer overflows off the world-map quest log's frame edge.
+- PartySync indicators no longer attach to account-shared (warband) or bonus-objective quests where party state has no meaning.
+
+**Behind the scenes:**
+
+- State model and tracker-mode plumbing consolidated; reduces the chance of "you forgot to update X when Y changed" bugs as the addon grows.
 
 ### v0.3.0-beta
 
