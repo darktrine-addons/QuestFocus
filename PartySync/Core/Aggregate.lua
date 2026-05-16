@@ -14,16 +14,15 @@
 --   nil               — caller doesn't have the quest, or none of the
 --                       priorities apply (hidden / no indicator)
 --
--- Pure function: no events, no side effects. Callers (the indicator
--- mount in slice 6, the Alt-tooltip in slice 7) invoke this on
--- recompute triggers and react to the returned enum.
+-- Pure function: no events, no side effects. Callers (MountTracker for
+-- the indicator dots, Tooltip for the appended row tooltip) invoke this
+-- on recompute triggers and react to the returned enum.
 --
--- BNet visibility caveat (design §0.2): partymates hidden from the
--- caller via BNet "appear offline" register as state=not_on_quest in
--- Fetch's output. Aggregate treats them as `members_without`, which
--- means the `alone_shareable` state can fire when a hidden partymate
--- actually has the quest. We surface this in the README + tooltips —
--- accepted UX cost.
+-- BNet visibility caveat: partymates hidden from the caller via BNet
+-- "appear offline" register as state=not_on_quest in Fetch's output.
+-- Aggregate treats them as `members_without`, which means the
+-- `alone_shareable` state can fire when a hidden partymate actually has
+-- the quest. We surface this in the README — accepted UX cost.
 
 local addonName, ns = ...
 ns.PartySync = ns.PartySync or {}

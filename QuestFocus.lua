@@ -110,7 +110,7 @@ SlashCmdList.QUESTFOCUS = function(msg)
         return
     end
     if msg == "party broadcast on" or msg == "party broadcast off" then
-        print("|cffffcc00QuestFocus|r broadcast is not implemented in MVP (Phase 3 future work).")
+        print("|cffffcc00QuestFocus|r broadcast is reserved and not yet implemented.")
         return
     end
 

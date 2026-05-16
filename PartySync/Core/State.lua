@@ -1,8 +1,7 @@
--- PartySync/Core/State.lua — module state holder (placeholder).
---
--- Slice 2 stub: declares the namespace so future slices have a stable
--- place to land `local_state` / `party_state` accessors against. Filled
--- in slice 3 with the parsed-party-progress cache.
+-- PartySync/Core/State.lua — placeholder for future per-session state
+-- (party action history, accept-recency cache, etc.). Currently just
+-- declares the namespace so the module structure is consistent with
+-- ZoneFilter.
 
 local addonName, ns = ...
 ns.PartySync = ns.PartySync or {}

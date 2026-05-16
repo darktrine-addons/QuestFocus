@@ -1,19 +1,16 @@
--- Core/Settings.lua — native AddOn settings panel scaffold.
+-- Core/Settings.lua — native AddOn settings panel.
 --
--- Slice A1 (Phase 2 roadmap): single QuestFocus category at top level
--- under WoW's Settings → AddOns. Two checkboxes for the module enable
--- flags, bound directly to the QuestFocusDB.modules.<name> tables so
--- the slash commands and the panel write the same SV keys.
+-- One QuestFocus category under Settings → AddOns, with sections for
+-- Global (module toggles + Reload UI) and PartySync (visual settings +
+-- on-tracker preview). Module enable checkboxes are bound directly to
+-- QuestFocusDB.modules.<name> tables so slash commands and the panel
+-- write the same SV keys.
 --
--- PartySync's checkbox hot-toggles via ns.PartySync.SetActive on
--- ValueChanged, mirroring `/qf module disable|enable PartySync`.
--- ZoneFilter still requires /reload (it has frame-attached buttons
--- that can't cleanly tear themselves down) and the checkbox tooltip
+-- PartySync's enable checkbox hot-toggles via ns.PartySync.SetActive
+-- on ValueChanged, mirroring `/qf module disable|enable PartySync`.
+-- ZoneFilter still requires /reload (its frame-attached buttons can't
+-- cleanly tear themselves down without one) and the checkbox tooltip
 -- says so.
---
--- Future slices (Bundle B / Bundle D) add subcategories or extra
--- settings into this same category; the registration function is
--- idempotent.
 
 local addonName, ns = ...
 ns.Settings = ns.Settings or {}
