@@ -176,7 +176,7 @@ function Apply.Mode(modeName, opts)
     -- revert).
     State.TransitionToMode(modeName, actualTarget, current)
 
-    notify(string.format("%s: tracked %d, untracked %d",
+    notify(string.format("%s: tracked %d, untracked %d - '/qf revert' to revert",
         MODE_LABELS[modeName] or modeName, tracked, untracked))
 
     if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then
