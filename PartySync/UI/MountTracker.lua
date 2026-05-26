@@ -37,6 +37,12 @@ local eventsWired    = false
 -- Tracker modules we attach to. World quests, scenarios, achievements,
 -- bonus objectives etc. are excluded — they don't have the party-progress
 -- semantics the indicator is conveying.
+--
+-- Extension point: to add support for a new Blizzard tracker module,
+-- append its global name here. The module must expose `usedBlocks` in
+-- the two-level shape (`[templateName][questID] = block`) and an
+-- `Update` method we can hooksecurefunc to. No other code changes are
+-- required — Refresh and VisibleQuestBlocks iterate this list uniformly.
 local TRACKER_MODULES = {
     "QuestObjectiveTracker",
     "CampaignQuestObjectiveTracker",

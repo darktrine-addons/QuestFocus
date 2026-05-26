@@ -144,6 +144,16 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 
 ## Changelog
 
+### v0.9.2-beta
+
+**Improvements:**
+
+- **True circle indicator shape.** The *Indicator shape* dropdown now offers Circle alongside Square and Diamond — rendered via a circular alpha mask on the solid colour, so it tints with the palette like the other shapes. Circle is the new default (existing users keep their stored choice).
+
+**Behind the scenes:**
+
+- Documentation comments in `Core/Config.lua` (SavedVariables account-vs-character split convention) and `PartySync/UI/MountTracker.lua` (extension point for adding new tracker module types) so future contributors don't need to re-derive these from reading the code.
+
 ### v0.9.1-beta
 
 **Behind the scenes:**

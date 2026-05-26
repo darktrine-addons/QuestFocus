@@ -399,15 +399,17 @@ function ns.Settings.Register()
     -- B2: shape
     local shapeSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Shape", "indicatorShape",
-        QuestFocusDB.partySync, Settings.VarType.String, "Indicator shape", "square")
+        QuestFocusDB.partySync, Settings.VarType.String, "Indicator shape", "circle")
     Settings.CreateDropdown(category, shapeSetting,
         function()
             local c = Settings.CreateControlTextContainer()
             c:Add("square",  "Square")
+            c:Add("circle",  "Circle")
             c:Add("diamond", "Diamond")
             return c:GetData()
         end,
-        "Shape of the indicator dot. Diamond is the same texture rotated 45°.")
+        "Shape of the indicator dot. Circle uses a circular alpha mask "
+        .. "over the solid colour; diamond is the same texture rotated 45°.")
     shapeSetting:SetValueChangedCallback(RefreshIndicators)
 
     -- B3: anchor position

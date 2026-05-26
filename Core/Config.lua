@@ -1,4 +1,21 @@
--- Core/Config.lua — shared module-toggle scaffold.
+-- Core/Config.lua — shared module-toggle scaffold + SV defaults.
+--
+-- SavedVariables split convention (followed throughout the addon):
+--
+--   QuestFocusDB       — account-wide. Module enable flags, PartySync
+--                        visual preferences (size, shape, palette, etc),
+--                        anything that should feel the same across every
+--                        character on the account.
+--
+--   QuestFocusCharDB   — per-character. ZoneFilter's currentApplication
+--                        struct (the live filter state), per-character
+--                        behaviour preferences like untrackClearsSnapshot.
+--
+-- Rule of thumb when adding a new setting: behaviour state and per-char
+-- preferences → QuestFocusCharDB. Visual / cosmetic preferences and
+-- module-level toggles → QuestFocusDB. If you're unsure, ask "would a
+-- user reasonably want this setting to differ between their characters?"
+-- — yes → CharDB, no → DB.
 --
 -- Backs `QuestFocusDB.modules[name] = { enabled = true|false }` against a
 -- known-module allowlist. Unknown names default to enabled so a future
@@ -13,7 +30,7 @@ local KNOWN_MODULES = { "ZoneFilter", "PartySync" }
 
 local PARTYSYNC_VISUAL_DEFAULTS = {
     indicatorSize    = 10,               -- 6 / 8 / 10 / 12 (px)
-    indicatorShape   = "square",         -- "square" | "diamond"
+    indicatorShape   = "circle",         -- "square" | "circle" | "diamond"
     indicatorAnchor  = "leftOfTitle",    -- leftOfTitle | rightOfTitle | topRight
     palette          = "default",        -- "default" | "deuteranopia" | "tritanopia"
     indicatorOpacity = 1.0,              -- 0.4 .. 1.0

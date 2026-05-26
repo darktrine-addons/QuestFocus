@@ -73,14 +73,9 @@ Implementation notes:
 
 Low-risk, ~one commit each.
 
-### F1 — True circle indicator shape
+### F1 — True circle indicator shape ✅ shipped in v0.9.2-beta
 
-Currently the "circle" dropdown option falls back to square + rotate-45° = diamond. The user asked for an actual circle. Two paths:
-
-- **Atlas** — find a reliable Blizzard atlas that renders as a circle of arbitrary tint. Most candidates we explored had baked-in colour or weren't reliably present. Possibilities still worth trying: `services-icon-warning` family (we used the warning variant), `talents-button-pvp-greenglow`, `loottoast-iconborder-purple-large`. Each needs in-game verification.
-- **Bundled texture** — ship a small `circle.tga` or `circle.blp` (white, alpha-masked circle, 32×32). Indicator.lua's `SetTexture(path) + SetVertexColor` would tint per state. Adds a ~1 KB asset, but guarantees behaviour.
-
-Recommendation: bundle the texture. Predictable across clients.
+Implemented via Blizzard's `Interface\CharacterFrame\TempPortraitAlphaMask` (the round portrait used by the vehicle UI) applied as a `CreateMaskTexture` on the indicator's solid ColorTexture. Reliable across clients, no bundled asset. Circle is the new default shape; Square and Diamond still selectable. See `Indicator.lua`'s `ApplyShape` for the mask-attach / detach logic.
 
 ### F2 — Monochrome + glyph palette
 
@@ -96,11 +91,9 @@ Add a fourth palette option for users with strong colour-vision differences or w
 
 Small items from the Phase 2 architecture review:
 
-- **#6** — One-paragraph SV-storage rationale comment in `Config.lua` explaining the `QuestFocusDB` (account-wide visuals + module toggles) vs `QuestFocusCharDB` (per-character behaviour state) split. Stops future settings from landing on the wrong side.
-- **#7** — Command-table dispatcher in `QuestFocus.lua`. Replace the flat `if/elseif` chain with `COMMANDS["all"] = function() Apply.Mode("trackAll") end` etc. Worth doing only if commands grow past ~20; currently at ~15 so not urgent.
-- **#8** — Brief comment on `TRACKER_MODULES = { ... }` in `MountTracker.lua` flagging it as the extension point for adding new tracker module types (if Blizzard introduces a new one).
-
-**Estimated effort:** 1–2 commits.
+- **#6** ✅ shipped in v0.9.2-beta — SV-storage rationale documented in `Core/Config.lua` header.
+- **#7** — Command-table dispatcher in `QuestFocus.lua`. Replace the flat `if/elseif` chain with `COMMANDS["all"] = function() Apply.Mode("trackAll") end` etc. Worth doing only if commands grow past ~20; currently at ~15 so not urgent. Still deferred.
+- **#8** ✅ shipped in v0.9.2-beta — extension-point comment on `TRACKER_MODULES` in `PartySync/UI/MountTracker.lua`.
 
 ---
 
@@ -166,8 +159,9 @@ The big one. AceComm + LibSerialize + DELTA / HELLO / ROSTER protocol from `desi
 
 If returning to this plan cold after time away:
 
-- **What was just shipped:** `v0.9.0-beta` (Phase 2 polish + tracker modes + architecture refactor) and `v0.9.1-beta` (CurseForge/Wago publishing pipeline activation). Tag is on origin; CurseForge ID 1544844, Wago ID `RNLkP0Go`.
-- **What's NOT in flight:** no active branch, no half-finished work in the working tree. Last commit is `56cc277` on `main`.
+- **What's shipped:** v0.9.0-beta (Phase 2 polish + tracker modes + architecture refactor), v0.9.1-beta (CurseForge/Wago publishing pipeline activation), v0.9.2-beta (Bundle F1 true circle indicator + F3 architecture docs). CurseForge ID 1544844, Wago ID `RNLkP0Go`.
+- **What's NOT in flight:** no active branch, no half-finished work in the working tree.
 - **GH issues:** none open. Issue #1 closed on completion of Bundle D + quest-log pair work.
-- **Next concrete step (per current recommendation):** Bundle F1 (true circle indicator) is the smallest possible warm-up. Or skip directly to Bundle E if the appetite is for the bigger value.
+- **Remaining in Bundle F:** F2 (monochrome + glyph palette) and F-#7 (command-table slash dispatcher) are still deferred — F2 needs more design than a quick session warrants; #7 isn't urgent below ~20 commands.
+- **Next concrete step (per current recommendation):** Bundle E (session-state-aware tooltip rewrite) — the user's own ask. Largest user-visible improvement among remaining work. See section "Bundle E" above.
 - **The Phase 3 design lives here.** Don't re-derive — read, refine, decide.

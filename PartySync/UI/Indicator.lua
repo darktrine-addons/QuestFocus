@@ -9,6 +9,10 @@
 --
 -- Shapes:
 --   square  — solid ColorTexture, no rotation
+--   circle  — solid ColorTexture + a circular alpha mask. The mask uses
+--             Blizzard's TempPortraitAlphaMask texture (the round
+--             portrait used by the vehicle UI etc.); reliable across
+--             clients without bundling our own asset.
 --   diamond — same texture rotated 45°. Visual extent is the inscribed
 --             square (~71% of the frame), no texture-path dependency.
 --
@@ -48,6 +52,10 @@ local PALETTES = {
 
 local pool = {}
 
+-- Blizzard's circular alpha mask (the small round portrait used in
+-- vehicle UI and similar). Reliable across clients.
+local CIRCLE_MASK_PATH = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+
 local function NewFrame()
     local f = CreateFrame("Frame", nil, UIParent)
     f:SetFrameStrata("MEDIUM")
@@ -56,6 +64,38 @@ local function NewFrame()
     f.tex = tex
     f:Hide()
     return f
+end
+
+local function EnsureCircleMask(tex)
+    if tex._qfCircleMask then return tex._qfCircleMask end
+    local mask = tex:CreateMaskTexture()
+    mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(tex)
+    tex._qfCircleMask = mask
+    return mask
+end
+
+local function ApplyShape(tex, shape)
+    if shape == "circle" then
+        local mask = EnsureCircleMask(tex)
+        if not tex._qfMaskAttached then
+            tex:AddMaskTexture(mask)
+            tex._qfMaskAttached = true
+        end
+        tex:SetRotation(0)
+    elseif shape == "diamond" then
+        if tex._qfCircleMask and tex._qfMaskAttached then
+            tex:RemoveMaskTexture(tex._qfCircleMask)
+            tex._qfMaskAttached = false
+        end
+        tex:SetRotation(math.rad(45))
+    else  -- square (or unknown)
+        if tex._qfCircleMask and tex._qfMaskAttached then
+            tex:RemoveMaskTexture(tex._qfCircleMask)
+            tex._qfMaskAttached = false
+        end
+        tex:SetRotation(0)
+    end
 end
 
 local function Conf(key, fallback)
@@ -80,7 +120,12 @@ function Indicator.Release(f)
     f:Hide()
     f:ClearAllPoints()
     f:SetParent(UIParent)
-    f.tex:SetRotation(0)  -- reset for next use
+    f.tex:SetRotation(0)
+    -- Drop any circle mask so the next acquire starts shape-neutral.
+    if f.tex._qfCircleMask and f.tex._qfMaskAttached then
+        f.tex:RemoveMaskTexture(f.tex._qfCircleMask)
+        f.tex._qfMaskAttached = false
+    end
     table.insert(pool, f)
 end
 
@@ -101,7 +146,7 @@ function Indicator.SetState(f, state)
 
     f:SetSize(size, size)
     f.tex:SetColorTexture(color[1], color[2], color[3], opacity)
-    f.tex:SetRotation(shape == "diamond" and math.rad(45) or 0)
+    ApplyShape(f.tex, shape)
     f:Show()
 end
 
