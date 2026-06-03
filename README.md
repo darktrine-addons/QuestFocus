@@ -144,65 +144,7 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 
 ## Changelog
 
-### v0.9.2-beta
-
-**Improvements:**
-
-- **True circle indicator shape.** The *Indicator shape* dropdown now offers Circle alongside Square and Diamond — rendered via a circular alpha mask on the solid colour, so it tints with the palette like the other shapes. Circle is the new default (existing users keep their stored choice).
-
-**Behind the scenes:**
-
-- Documentation comments in `Core/Config.lua` (SavedVariables account-vs-character split convention) and `PartySync/UI/MountTracker.lua` (extension point for adding new tracker module types) so future contributors don't need to re-derive these from reading the code.
-
-### v0.9.1-beta
-
-**Behind the scenes:**
-
-- Activate the CurseForge and Wago publishing pipeline (project IDs wired into the TOC). No functional changes.
-
-### v0.9.0-beta
-
-**New features:**
-
-- **Native settings panel.** Find QuestFocus under *Escape → Options → AddOns → QuestFocus*. Or Shift-Right-click any of the filter buttons.
-- **Tracker mode menu.** Right-click the focus (🔍) button to pick from nine one-click tracker modes: *Track all*, *Track current zone*, *Track current zone + promote from log*, *Track campaign quests only*, *Track daily quests only*, *Track weeklies only*, *Track Important quests only* (the purple-triangle quests Blizzard marks), *Track ready-to-turn-in only*, *Track in-progress only*, *Untrack everything*. Each entry previews how many quests it would track and flags actions that would empty the tracker.
-- **Active-mode awareness.** The menu shows which mode is currently in effect (`(active)` in green, `(drifted)` in orange). The lens tooltip headline now reads what the filter is doing right now — *No filter*, *Filter: weeklies only*, *Filter: campaign quests only (1 added)*, etc. — colour-matched to the lens dot.
-- **Re-apply button** appears between the revert and lens buttons when a tracker mode is active and the watch list has drifted. One click cleans the drift without leaving the current mode. Hidden otherwise.
-- **PartySync visual settings.** Tune indicator dots in the settings panel: size (6 / 8 / 10 / 12 px), shape (square / diamond), position (top-right corner / right of title / left of title), three colour palettes including red-green-friendly and blue-yellow-friendly variants, and a 40 %–100 % opacity slider. Inline style preview shows the current look; on-tracker preview button previews on real rows.
-- **Quest-log autopilot.** Quests that complete or get abandoned are removed from filter state automatically.
-
-**Improvements:**
-
-- **Optional revert behaviour:** new per-character setting *Manual un-track also clears the snapshot*. When on, manually un-tracking a quest while a filter is active means revert won't restore it. Off by default (preserves the original behaviour where revert restores the exact pre-filter watch list).
-- **Drift pulse.** When the filter transitions from clean to dirty (e.g. a new quest is auto-tracked while a filter is active), the lens icon briefly flashes to draw attention.
-- **Raid handling.** In groups of 10+ members the per-member tooltip section is hidden automatically (it'd be too long). Indicator dots still show. Configurable threshold: always show / hide at 10+ / hide at 20+.
-- **Quest-icon clearance.** *Left of title text* indicator position now offsets 30 px to clear the quest-type icon column instead of overlapping it.
-- **Click-binding hints in the menu** — the two zone-filter rows are labelled `[Left-click]` and `[Shift+Left-click]` so it's obvious which menu entry corresponds to which keyboard shortcut.
-- **Slash commands** for every tracker mode: `/qf all`, `/qf untrack`, `/qf campaign`, `/qf daily`, `/qf weekly`, `/qf important`, `/qf ready`, `/qf inprogress` (existing `/qf`, `/qf promote`, `/qf revert`, `/qf status` still work).
-
-**Fixes:**
-
-- The triangular re-apply button no longer overflows off the world-map quest log's frame edge.
-- PartySync indicators no longer attach to account-shared (warband) or bonus-objective quests where party state has no meaning.
-
-**Behind the scenes:**
-
-- State model and tracker-mode plumbing consolidated; reduces the chance of "you forgot to update X when Y changed" bugs as the addon grows.
-
-### v0.3.0-beta
-
-- **PartySync module** — coloured dot on every tracked quest row when in a party (green/yellow/blue/orange/hidden). Hover the row and Blizzard's normal quest tooltip gets a "Party state:" section appended: class-coloured member names with their state (`Ready to turn in` / `In progress (K/N)` / `Not on quest`) and a BNet-visibility footer when relevant. Attaches to both `QuestObjectiveTracker` and `CampaignQuestObjectiveTracker`, so campaign quests get the same treatment.
-- **Auto-promote in ZoneFilter** — new quests entering the log while the filter is active are added to the watch list immediately if they're zone-relevant. Closes the `autoQuestWatch` gap on event quests like *Void Assaults*.
-- **Module-toggle slash commands** — `/qf module list`, `/qf module enable|disable <name>`. PartySync hot-toggles; ZoneFilter still wants `/reload`.
-- Source restructured under `ZoneFilter/` and `PartySync/` namespaces.
-
-### v0.1.x
-
-- Initial ZoneFilter feature: filter/revert buttons on the tracker and the world-map quest log.
-- Merge revert semantics: pre-filter snapshot ∪ quests-added-since.
-- Tri-state filter indicator (white / green / orange).
-- Restorable-count badge on the revert button.
-- Slash commands: `/qf`, `/qf promote`, `/qf revert`, `/qf status`.
+See [CHANGELOG.md](https://github.com/darktrine-addons/QuestFocus/blob/main/CHANGELOG.md) for the full version history. The notes for each release are also posted with the download on CurseForge and Wago.
 
 ---
 
