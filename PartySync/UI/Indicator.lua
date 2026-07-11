@@ -66,22 +66,33 @@ local function NewFrame()
     return f
 end
 
-local function EnsureCircleMask(tex)
+-- MaskTexture creation lives on Frame, NOT on Texture — calling
+-- tex:CreateMaskTexture() errors with "attempt to call a nil value" on
+-- current 12.x clients. Create via the indicator frame and hand the
+-- mask to the texture with AddMaskTexture. Returns nil when the client
+-- can't do masks at all; caller falls back to square.
+local function EnsureCircleMask(f)
+    local tex = f.tex
     if tex._qfCircleMask then return tex._qfCircleMask end
-    local mask = tex:CreateMaskTexture()
+    if not f.CreateMaskTexture or not tex.AddMaskTexture then return nil end
+    local mask = f:CreateMaskTexture()
     mask:SetTexture(CIRCLE_MASK_PATH, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     mask:SetAllPoints(tex)
     tex._qfCircleMask = mask
     return mask
 end
 
-local function ApplyShape(tex, shape)
+local function ApplyShape(f, shape)
+    local tex = f.tex
     if shape == "circle" then
-        local mask = EnsureCircleMask(tex)
-        if not tex._qfMaskAttached then
-            tex:AddMaskTexture(mask)
-            tex._qfMaskAttached = true
+        local mask = EnsureCircleMask(f)
+        if mask then
+            if not tex._qfMaskAttached then
+                tex:AddMaskTexture(mask)
+                tex._qfMaskAttached = true
+            end
         end
+        -- No mask support → shown as a square; still no rotation.
         tex:SetRotation(0)
     elseif shape == "diamond" then
         if tex._qfCircleMask and tex._qfMaskAttached then
@@ -146,7 +157,7 @@ function Indicator.SetState(f, state)
 
     f:SetSize(size, size)
     f.tex:SetColorTexture(color[1], color[2], color[3], opacity)
-    ApplyShape(f.tex, shape)
+    ApplyShape(f, shape)
     f:Show()
 end
 
