@@ -380,18 +380,17 @@ function ns.Settings.Register()
         "untrackClearsSnapshot",
         QuestFocusCharDB.zoneFilter,
         Settings.VarType.Boolean,
-        "Manual un-track also clears the snapshot",
+        "Revert respects manual un-tracks",
         false)
     Settings.CreateCheckbox(
         category,
         untrackClearsSetting,
-        "When checked, manually un-tracking a quest while a filter is "
-        .. "active also removes it from the snapshot. A later revert "
-        .. "will then respect that choice and won't restore the quest. "
-        .. "Per-character.\n\n"
-        .. "|cffaaaaaaDefault off preserves strict revert: the snapshot is "
-        .. "restored exactly as it was taken, regardless of interim "
-        .. "manual changes.|r")
+        "When checked, quests you un-track by hand while a filter is "
+        .. "active are treated as deliberate: Revert won't bring them "
+        .. "back. Per-character.\n\n"
+        .. "|cffaaaaaaDefault off: Revert restores your watch list exactly "
+        .. "as it was when you applied the filter, even if you un-tracked "
+        .. "some of those quests since.|r")
 
     -- ===========================================================
     -- Section: PartySync (visual settings)

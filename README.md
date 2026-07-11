@@ -17,7 +17,7 @@ Retail only. Requires Midnight (Interface 120007+).
 - **One-click revert** to whatever you were tracking before, with merge semantics: any quest you accepted while the filter was on stays accepted.
 - **Coloured indicator dots** on each tracked quest row when you're in a party — green / yellow / blue / orange tell you instantly whether your party is aligned, mixed, ready to turn in, or in a "I'm the only one on this quest" share opportunity.
 - **Party-state breakdown** appended to Blizzard's tracker row tooltip — class-coloured names, per-member status.
-- **Native settings panel** under *Escape → Options → AddOns → QuestFocus*: indicator size, shape, position, three colour palettes (incl. red-green-friendly and blue-yellow-friendly), opacity, raid threshold, and a manual-untrack-clears-snapshot toggle.
+- **Native settings panel** under *Escape → Options → AddOns → QuestFocus*: indicator size, shape, position, three colour palettes (incl. red-green-friendly and blue-yellow-friendly), opacity, raid threshold, and a revert-respects-manual-un-tracks toggle.
 
 ---
 
@@ -28,7 +28,7 @@ Two small buttons attach to the objective tracker and to the world-map quest log
 ### What it does
 
 - **🔍 Focus** *(left-click)* — Narrow your watch list to quests with an objective in the current zone. Quests in the zone you haven't tracked are left alone.
-- **🔍 Focus + promote** *(shift-left-click)* — Same untrack pass, *plus* promote any zone-relevant quest from your quest log into the watch list.
+- **🔍 Focus + add from log** *(shift-left-click)* — Same untrack pass, *plus* adds any zone-relevant quest from your quest log to the watch list.
 - **🔍 Tracker mode menu** *(right-click)* — Nine one-click modes covering all the most common "show me only X" cases. Each entry previews how many quests it would track; entries that would empty the tracker flag a warning glyph.
 - **↶ Revert** — Restores the watch list to the snapshot taken when you first applied a filter, **plus any quests you've added since** (manually or via Blizzard's `autoQuestWatch`). Per-character snapshot survives `/reload`.
 - **Re-apply button** (green ↶) — Appears between the lens and the revert button when a non-zone tracker mode is active and the watch list has drifted. One click cleans the drift without leaving the current mode.
@@ -48,8 +48,8 @@ The lens tooltip headline shows the current state in plain language: *No filter*
 | Mode | What it tracks |
 |---|---|
 | Track all quests in log | Every accepted quest |
-| Track current zone (Focus) | Plain Focus — narrow to zone, no promote |
-| Track current zone + promote from log | Focus + Shift — narrow + add zone-relevant from log |
+| Track current zone (Focus) | Plain Focus — narrow to zone, nothing added |
+| Track current zone + add from log | Focus + Shift — narrow, then add zone-relevant quests from your log |
 | Track campaign quests only | Only quests in a campaign chain |
 | Track daily quests only | `Enum.QuestFrequency.Daily` |
 | Track weeklies only | `Enum.QuestFrequency.Weekly` |
@@ -70,7 +70,7 @@ While a filter is active, any new quest entering your log that matches the curre
 revert_target = snapshot ∪ quests_added_since
 ```
 
-Anything you've manually accepted or tracked between filter-apply and revert is preserved. Quests the filter itself added get cleaned up. Strict by default: if you manually un-track a quest that was in the snapshot, revert restores it. Flip the per-character setting *Manual un-track also clears the snapshot* if you'd rather revert respect your manual removal.
+Anything you've manually accepted or tracked between filter-apply and revert is preserved. Quests the filter itself added get cleaned up. Strict by default: if you manually un-track a quest that was in the snapshot, revert restores it. Flip the per-character setting *Revert respects manual un-tracks* if you'd rather revert respect your manual removal.
 
 ---
 
@@ -98,7 +98,7 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 
 ```
 /qf                          apply ZoneFilter to current zone (narrow only)
-/qf promote                  same plus promote untracked zone quests from log
+/qf promote                  same plus add untracked zone quests from log
 /qf revert                   restore pre-filter watch list (merge semantics)
 /qf status                   print filter active / restorable counts
 

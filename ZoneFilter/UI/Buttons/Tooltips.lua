@@ -75,7 +75,7 @@ function Tooltips.Filter()
     --
     -- Format (consistent across active/inactive/non-zone):
     --   |cffff9919Left-Click|r: Focus current zone (-N) (T tracked) [WARN]
-    --   |cffff9919Shift-Left-Click|r: Focus current zone + promote (-N / +M) (T tracked) [WARN]
+    --   |cffff9919Shift-Left-Click|r: Focus current zone + add from log (-N / +M) (T tracked) [WARN]
     --
     -- Colours: light orange "hint-keyword" prefix (matches NosyKeys /
     -- Broker_PlayerCoords tooltip convention), red -N, green +M, grey
@@ -113,8 +113,8 @@ function Tooltips.Filter()
             clickCount,
             clickWarn), 1, 1, 1, false)
 
-        -- Shift-left-click: narrow + promote from log.
-        GameTooltip:AddLine(string.format("%s: Focus current zone + promote %s |cffaaaaaa(%d tracked)|r%s",
+        -- Shift-left-click: narrow + add zone quests from the log.
+        GameTooltip:AddLine(string.format("%s: Focus current zone + add from log %s |cffaaaaaa(%d tracked)|r%s",
             string.format(KEY_BINDING, "Shift-Left-Click"),
             FormatDelta(untrack, promote),
             shiftCount,

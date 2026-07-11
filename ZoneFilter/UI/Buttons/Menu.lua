@@ -80,8 +80,8 @@ function Menu.Show(button)
         root:CreateDivider()
 
         -- Zone filter — also bound to the button's left/shift-left clicks.
-        addFilterItem("Track current zone (Focus)",            false, { binding = "Left-click" })
-        addFilterItem("Track current zone + promote from log", true,  { binding = "Shift+Left-click" })
+        addFilterItem("Track current zone (Focus)",         false, { binding = "Left-click" })
+        addFilterItem("Track current zone + add from log",  true,  { binding = "Shift+Left-click" })
 
         root:CreateDivider()
 
