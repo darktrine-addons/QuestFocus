@@ -164,3 +164,10 @@ end
 function Indicator.PoolSize()
     return #pool
 end
+
+-- Current-palette colour for a state, as a {r, g, b} triple (0-1).
+-- Used by the tooltip legend so its swatches always match the dots.
+function Indicator.GetStateColor(state)
+    local pal = PALETTES[Conf("palette", "default")] or PALETTES.default
+    return pal[state]
+end

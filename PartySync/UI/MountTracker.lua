@@ -95,6 +95,18 @@ end
 -- /qf party debug diffs without printing on every Refresh tick.
 local lastState = {}
 
+-- One-time onboarding: the first time a dot ever lights up on this
+-- account, say so in chat — the moment a user meets an unexplained
+-- coloured dot is in a group, not in the settings panel. Flag lives in
+-- the account-wide SV so it fires once per account, not per character.
+local function MaybeShowFirstDotHint()
+    if not ns.Config then return end
+    if ns.Config.GetPartySyncSetting("dotHintShown") then return end
+    ns.Config.SetPartySyncSetting("dotHintShown", true)
+    print("|cffffcc00QuestFocus|r Party dots are live — hover a quest row for each"
+        .. " member's progress. Colours and shapes: |cffffff88/qf settings|r.")
+end
+
 local function Refresh()
     if ns.PartySync.active == false then return end
     local Indicator = ns.PartySync.UI.Indicator
@@ -140,6 +152,7 @@ local function Refresh()
         end
         lastState[qid] = state
         Indicator.SetState(f, state)
+        if state then MaybeShowFirstDotHint() end
     end
 end
 

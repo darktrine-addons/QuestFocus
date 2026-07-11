@@ -172,6 +172,24 @@ function Tooltip.AppendForQuest(tooltip, questID)
         AppendMemberRow(tooltip, row.name, ClassForGUID(row.guid), row.state, row.player)
     end
 
+    -- Dot legend — the one place the colour language is explained at
+    -- the moment the user actually meets a dot. Swatches read the live
+    -- palette so they stay correct for colour-vision palettes too.
+    local Indicator = ns.PartySync.UI and ns.PartySync.UI.Indicator
+    if Indicator and Indicator.GetStateColor then
+        local function swatch(state, label)
+            local c = Indicator.GetStateColor(state)
+            if not c then return label end
+            return string.format("|cff%02x%02x%02x●|r %s",
+                c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5, label)
+        end
+        tooltip:AddLine(string.format("Dot:  %s   %s   %s   %s",
+            swatch("ready_turn_in",   "ready"),
+            swatch("alone_shareable", "share"),
+            swatch("mixed",           "mixed"),
+            swatch("aligned",         "aligned")), 0.55, 0.55, 0.55)
+    end
+
     -- BNet visibility footer (only when relevant)
     if anyNotOnQuest then
         tooltip:AddLine(" ")

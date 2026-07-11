@@ -98,6 +98,12 @@ SlashCmdList.QUESTFOCUS = function(msg)
     if enableName  then ToggleModule(enableName,  true);  return end
     if disableName then ToggleModule(disableName, false); return end
 
+    -- Settings panel — available regardless of which modules are enabled
+    if msg == "settings" or msg == "options" or msg == "config" then
+        if ns.Settings and ns.Settings.Open then ns.Settings.Open() end
+        return
+    end
+
     -- PartySync utility sub-commands
     if msg == "party debug" then
         if ns.PartySync then
@@ -151,6 +157,7 @@ SlashCmdList.QUESTFOCUS = function(msg)
         print("|cffffcc00QuestFocus|r commands:")
         print("  |cffffff88/qf|r [filter] | promote | revert | status")
         print("  Modes: |cffffff88/qf|r all | untrack | campaign | daily | weekly | important | ready | inprogress")
+        print("  |cffffff88/qf|r settings")
         print("  |cffffff88/qf|r module list | module enable|disable <name>")
         print("  |cffffff88/qf|r party debug | party broadcast on|off")
     end
