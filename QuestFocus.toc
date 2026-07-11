@@ -20,6 +20,7 @@ ZoneFilter\Core\Apply.lua
 ZoneFilter\Core\Revert.lua
 ZoneFilter\Core\AutoPromote.lua
 ZoneFilter\Core\Hygiene.lua
+ZoneFilter\Core\ZoneNudge.lua
 ZoneFilter\UI\Buttons\Constants.lua
 ZoneFilter\UI\Buttons\Tooltips.lua
 ZoneFilter\UI\Buttons\Menu.lua

@@ -392,6 +392,25 @@ function ns.Settings.Register()
         .. "as it was when you applied the filter, even if you un-tracked "
         .. "some of those quests since.|r")
 
+    -- Zone-change reminder (nudge, not auto-apply — see ZoneNudge.lua).
+    if QuestFocusCharDB.zoneFilter.zoneChangeNudge == nil then
+        QuestFocusCharDB.zoneFilter.zoneChangeNudge = true
+    end
+    local nudgeSetting = Settings.RegisterAddOnSetting(
+        category,
+        "QuestFocus_ZF_ZoneNudge",
+        "zoneChangeNudge",
+        QuestFocusCharDB.zoneFilter,
+        Settings.VarType.Boolean,
+        "Zone-change reminder",
+        true)
+    Settings.CreateCheckbox(
+        category,
+        nudgeSetting,
+        "When the zone filter is active and you enter a new zone, pulse "
+        .. "the lens and print a chat line with a one-click [Re-focus] "
+        .. "link. Nothing is re-tracked until you click. Per-character.")
+
     -- ===========================================================
     -- Section: PartySync (visual settings)
     -- ===========================================================

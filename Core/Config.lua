@@ -65,6 +65,9 @@ function ns.Config.EnsureDB()
     if QuestFocusCharDB.zoneFilter.untrackClearsSnapshot == nil then
         QuestFocusCharDB.zoneFilter.untrackClearsSnapshot = false
     end
+    if QuestFocusCharDB.zoneFilter.zoneChangeNudge == nil then
+        QuestFocusCharDB.zoneFilter.zoneChangeNudge = true
+    end
 end
 
 function ns.Config.GetPartySyncSetting(key)

@@ -105,6 +105,17 @@ end
 -- Exposed so Apply / Revert can notify the UI after a state change.
 ns.ZoneFilter.UI.OnStateChanged = UpdateAll
 
+-- Exposed for the zone-change nudge: pulse every mounted lens icon
+-- once to draw the eye toward the (stale) filter.
+function ns.ZoneFilter.UI.PulseLens()
+    if InCombatLockdown() then return end
+    for _, inst in ipairs(instances) do
+        if inst.filterBtn and inst.filterBtn.icon then
+            PulseLensIcon(inst.filterBtn.icon)
+        end
+    end
+end
+
 -- ============================================================
 -- Button factory
 -- ============================================================
