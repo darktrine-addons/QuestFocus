@@ -17,7 +17,9 @@ Retail only. Requires Midnight (Interface 120007+).
 - **One-click revert** to whatever you were tracking before, with merge semantics: any quest you accepted while the filter was on stays accepted.
 - **Coloured indicator dots** on each tracked quest row when you're in a party — green / yellow / blue / orange tell you instantly whether your party is aligned, mixed, ready to turn in, or in a "I'm the only one on this quest" share opportunity.
 - **Party-state breakdown** appended to Blizzard's tracker row tooltip — class-coloured names, per-member status.
-- **Native settings panel** under *Escape → Options → AddOns → QuestFocus*: indicator size, shape, position, three colour palettes (incl. red-green-friendly and blue-yellow-friendly), opacity, raid threshold, and a revert-respects-manual-un-tracks toggle.
+- **Zone-change reminder** — when the zone filter goes stale after a zone change, the lens pulses and a chat line offers a one-click *[Re-focus]* link. Nothing changes until you click.
+- **Keybindings** for Focus, Focus + add from log, and Revert under *Options → Keybindings → AddOns*.
+- **Native settings panel** under *Escape → Options → AddOns → QuestFocus* (or `/qf settings`): indicator size, shape, position, three colour palettes (incl. red-green-friendly and blue-yellow-friendly), opacity, raid threshold, and a revert-respects-manual-un-tracks toggle.
 
 ---
 
@@ -63,6 +65,10 @@ The currently-active mode is annotated `(active)` in green or `(drifted)` in ora
 ### The filter stays true
 
 While a filter is active, any new quest entering your log that **matches the active mode** is tracked automatically — a new weekly under *weeklies only*, a zone quest under *Focus*, a campaign quest under *campaign only*. No orange drift to clean up for quests the filter would have picked anyway. This also closes the gap with Blizzard's `autoQuestWatch` on event quests like *Void Assaults* that get pushed into your log on first progress without auto-tracking. Manually un-tracking an auto-added quest keeps it un-tracked — only *new* arrivals are added, no infinite-loop re-tracking.
+
+### Zone-change reminder
+
+When the zone filter is active and you enter a new zone where your watch list no longer matches, the lens pulses and one chat line appears: *Zone changed — Duskwood has 4 of your quests. [Re-focus]*. Clicking the link runs Focus + add from log for the new zone; ignoring it costs nothing. Deliberately a reminder rather than an auto-apply — the addon never re-tracks anything without your click. Per-character toggle in the settings panel (default on), 10-second cooldown so portal chains don't spam.
 
 ### Revert semantics
 
@@ -111,6 +117,8 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 /qf ready                    track only ready-to-turn-in quests
 /qf inprogress               track only in-progress quests
 
+/qf settings                 open the settings panel (aliases: options, config)
+
 /qf module list              show enable/active state of both modules
 /qf module enable <name>     enable a module (PartySync applies live; ZoneFilter needs /reload)
 /qf module disable <name>    disable a module
@@ -125,7 +133,7 @@ PartySync attaches to both the regular quest tracker and the campaign quest trac
 
 ## What it doesn't do (yet)
 
-- ZoneFilter has no auto-on-zone-change mode.
+- ZoneFilter never re-applies automatically on zone change — it reminds you with a clickable chat link instead (and even that can be turned off).
 - PartySync covers tracker rows only — no world-map quest log indicators.
 - PartySync doesn't broadcast over addon channels (consequently can't see BNet-hidden partymates).
 - Doesn't collapse tracker sections.
