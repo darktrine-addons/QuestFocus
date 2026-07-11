@@ -60,44 +60,48 @@ local PREVIEW_DURATION   = 30
 -- visibility for us automatically.
 -- ------------------------------------------------------------
 
-local inlinePreviewDots = {}  -- captured at first InitFrame for refresh
+local inlinePreviewDots = {}       -- addon-owned demo dots, built once
+local inlinePreviewContainer       -- addon-owned frame holding bg + dots
+local hookedHeaderFrames = setmetatable({}, { __mode = "k" })
 
-local function AttachInlinePreviewDots(frame)
-    if frame.qfPreviewAttached then return end
-    frame.qfPreviewAttached = true
+-- Taint / pool posture: the section-header frame the initializer hands
+-- us is a Blizzard-owned POOLED frame — it gets recycled for other
+-- rows (including other addons' categories) when the settings list
+-- rebuilds. We therefore never write fields or create children on it.
+-- Everything lives on our own container frame, which is re-parented
+-- onto the current header frame at InitFrame time and detached again
+-- when that frame hides (release back to the pool / panel close).
+local function EnsureInlinePreviewContainer()
+    if inlinePreviewContainer then return inlinePreviewContainer end
 
     local Indicator = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.Indicator
-    if not Indicator or not Indicator.Acquire then return end
+    if not Indicator or not Indicator.Acquire then return nil end
+
+    local c = CreateFrame("Frame", nil, UIParent)
+    c:Hide()
 
     -- Background rectangle making the row feel like its own panel.
-    -- Starts ~36 px below the title to leave space between section
-    -- heading and the dot row.
-    if not frame.qfPreviewBg then
-        local bg = frame:CreateTexture(nil, "BACKGROUND")
-        bg:SetColorTexture(0, 0, 0, 0.25)
-        bg:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -36)
-        bg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 4)
-        frame.qfPreviewBg = bg
-    end
+    local bg = c:CreateTexture(nil, "BACKGROUND")
+    bg:SetColorTexture(0, 0, 0, 0.25)
+    bg:SetAllPoints()
 
     local prevDot
     for i, state in ipairs(PREVIEW_STATES) do
         local d = Indicator.Acquire()
-        d:SetParent(frame)
+        d:SetParent(c)
         d:ClearAllPoints()
         if prevDot then
             d:SetPoint("LEFT", prevDot, "RIGHT", 70, 0)
         else
-            -- Dot row sits ~16 px inside the background → ~52 px below
-            -- the title. Roughly one section-header-height of breathing.
-            d:SetPoint("TOPLEFT", frame, "TOPLEFT", 40, -48)
+            -- Dot row sits ~16 px inside the background.
+            d:SetPoint("TOPLEFT", c, "TOPLEFT", 32, -12)
         end
         Indicator.SetState(d, state)
         inlinePreviewDots[i] = d
         prevDot = d
 
         -- One-word legend under each dot.
-        local lbl = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         lbl:SetPoint("TOP", d, "BOTTOM", 0, -3)
         lbl:SetText(PREVIEW_LABEL_TEXT[i])
 
@@ -114,6 +118,42 @@ local function AttachInlinePreviewDots(frame)
             GameTooltip:Show()
         end)
         d:SetScript("OnLeave", GameTooltip_Hide)
+    end
+
+    inlinePreviewContainer = c
+    return c
+end
+
+local function DetachInlinePreview()
+    local c = inlinePreviewContainer
+    if not c then return end
+    c:Hide()
+    c:ClearAllPoints()
+    c:SetParent(UIParent)
+end
+
+local function AttachInlinePreview(frame)
+    local c = EnsureInlinePreviewContainer()
+    if not c then return end
+    c:SetParent(frame)
+    c:ClearAllPoints()
+    -- Starts ~36 px below the title to leave space between section
+    -- heading and the dot row.
+    c:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -36)
+    c:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 4)
+    c:Show()
+
+    -- Detach when this pooled frame hides (released back to the pool or
+    -- the panel closes) so the preview can never bleed into whatever
+    -- row the frame is recycled for next. HookScript only; weak-keyed
+    -- side-table prevents double-hooking a frame we've seen before.
+    if not hookedHeaderFrames[frame] then
+        hookedHeaderFrames[frame] = true
+        frame:HookScript("OnHide", function(self)
+            if inlinePreviewContainer and inlinePreviewContainer:GetParent() == self then
+                DetachInlinePreview()
+            end
+        end)
     end
 end
 
@@ -139,7 +179,7 @@ local function MakeInlinePreviewInitializer()
     local origInitFrame = init.InitFrame
     init.InitFrame = function(self, frame)
         if origInitFrame then origInitFrame(self, frame) end
-        AttachInlinePreviewDots(frame)
+        AttachInlinePreview(frame)
     end
     return init
 end
