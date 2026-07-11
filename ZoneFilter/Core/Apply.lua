@@ -87,6 +87,15 @@ local MODE_LABELS = {
 -- and by the lens tooltip's resulting-watched line.
 -- ============================================================
 
+-- Does this quest-log info row match the named mode's predicate?
+-- Used by AutoPromote so a newly-accepted quest that fits the ACTIVE
+-- filter gets tracked immediately regardless of which mode is active.
+function Apply.QuestMatchesMode(modeName, info)
+    local predicate = PREDICATES[modeName]
+    if not predicate or not info then return false end
+    return predicate(info) and true or false
+end
+
 function Apply.CountForMode(modeName)
     local predicate = PREDICATES[modeName]
     if not predicate then return 0 end

@@ -60,9 +60,9 @@ The lens tooltip headline shows the current state in plain language: *No filter*
 
 The currently-active mode is annotated `(active)` in green or `(drifted)` in orange. Slash commands cover every mode for macro use.
 
-### Auto-promote
+### The filter stays true
 
-While a filter is active, any new quest entering your log that matches the current zone is added to the watch list automatically. Closes the gap with Blizzard's `autoQuestWatch` on event quests like *Void Assaults* that get pushed into your log on first progress without auto-tracking. Manually un-tracking an auto-promoted quest keeps it un-tracked — only *new* arrivals get promoted, no infinite-loop re-tracking.
+While a filter is active, any new quest entering your log that **matches the active mode** is tracked automatically — a new weekly under *weeklies only*, a zone quest under *Focus*, a campaign quest under *campaign only*. No orange drift to clean up for quests the filter would have picked anyway. This also closes the gap with Blizzard's `autoQuestWatch` on event quests like *Void Assaults* that get pushed into your log on first progress without auto-tracking. Manually un-tracking an auto-added quest keeps it un-tracked — only *new* arrivals are added, no infinite-loop re-tracking.
 
 ### Revert semantics
 
