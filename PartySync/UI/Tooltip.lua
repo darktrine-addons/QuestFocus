@@ -96,19 +96,46 @@ local function AppendMemberRow(tooltip, name, class, state, player)
         sr, sg, sb)
 end
 
+-- One-line rollup for large groups: counts instead of the per-member
+-- list. The raid organiser's question is "how many still need this?",
+-- so suppressing entirely (the old D5 behaviour) threw away the most
+-- useful number right when groups get big.
+local function AppendSummary(tooltip, questID)
+    local Fetch = ns.PartySync.Fetch
+    local progress = Fetch.GetPartyProgress(questID)
+    local onQuest, ready, notOn = 0, 0, 0
+    for _, player in pairs(progress) do
+        local state = Fetch.GetPlayerStateForQuest(player)
+        if state == "complete" then
+            onQuest = onQuest + 1; ready = ready + 1
+        elseif state == "in_progress" then
+            onQuest = onQuest + 1
+        else
+            notOn = notOn + 1
+        end
+    end
+    if onQuest + notOn == 0 then return end
+    tooltip:AddLine(" ")
+    tooltip:AddLine(string.format(
+        "Party: |cffffffff%d|r on quest · |cff66ff66%d|r ready · |cff888888%d|r not on it",
+        onQuest, ready, notOn), 0.82, 0.82, 0.82)
+    tooltip:Show()
+end
+
 -- Append our party section to `tooltip` for the given questID. No-op
--- when solo or PartySync inactive, or when the group size meets the
--- D5 raid threshold (per-member list would be too long).
+-- when solo or PartySync inactive. When the group size meets the D5
+-- threshold, the per-member list is replaced by a one-line summary.
 function Tooltip.AppendForQuest(tooltip, questID)
     if ns.PartySync.active == false then return end
     if not questID or not IsInGroup() then return end
     local Fetch = ns.PartySync.Fetch
     if not Fetch then return end
 
-    -- D5: suppress in large groups (configurable threshold).
+    -- D5: summarize in large groups (configurable threshold).
     local threshold = (ns.Config and ns.Config.GetPartySyncSetting
                        and ns.Config.GetPartySyncSetting("raidThreshold")) or 0
     if threshold > 0 and (GetNumGroupMembers() or 0) >= threshold then
+        AppendSummary(tooltip, questID)
         return
     end
 

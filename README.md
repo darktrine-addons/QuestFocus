@@ -84,7 +84,7 @@ When you're in a party, every tracked quest in the objective tracker gets a smal
 - 🟠 **Orange** — *shareable*: only you have it, and at least one partymate is in the same zone (share the quest)
 - *no dot* — no actionable group state, or you're solo
 
-Hover any tracked quest row as you normally would — Blizzard's tooltip appears with the quest description and objectives, and PartySync **appends** a "Party state:" section below: each member's name in their class colour, with their state on the right (`Ready to turn in` / `In progress (K/N)` / `Not on quest`). "You" comes first, then partymates sorted by state. In groups of 10+ members the section is hidden automatically (configurable threshold). The indicator dots themselves are click-through — they're visual signals only, not separate hover targets.
+Hover any tracked quest row as you normally would — Blizzard's tooltip appears with the quest description and objectives, and PartySync **appends** a "Party state:" section below: each member's name in their class colour, with their state on the right (`Ready to turn in` / `In progress (K/N)` / `Not on quest`). "You" comes first, then partymates sorted by state. In groups of 10+ members the list is replaced by a one-line rollup — *Party: 14 on quest · 3 ready · 2 not on it* (configurable threshold). The indicator dots themselves are click-through — they're visual signals only, not separate hover targets.
 
 PartySync attaches to both the regular quest tracker and the campaign quest tracker.
 
