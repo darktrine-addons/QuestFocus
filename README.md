@@ -6,7 +6,7 @@
 
 QuestFocus puts a couple of small buttons on the objective tracker that narrow your watch list to what you actually care about right now — the zone you're in, the campaign you're following, weeklies you haven't finished, or any one of nine tracker modes you pick from a right-click menu. When you're in a party, every tracked row gets a coloured dot showing how the quest stands across your group: who has it, who's ready to turn in, who isn't on it at all. Hover the row and you'll see the per-member breakdown right inside Blizzard's own quest tooltip.
 
-Retail only. Requires Midnight (Interface 120005+).
+Retail only. Requires Midnight (Interface 120007+).
 
 ---
 
