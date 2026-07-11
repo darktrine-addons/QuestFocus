@@ -15,6 +15,8 @@
 
 local addonName, ns = ...
 ns.ZoneFilter = ns.ZoneFilter or {}
+local Hygiene = {}
+ns.ZoneFilter.Hygiene = Hygiene
 
 -- ============================================================
 -- D2: prune state on quest log churn
@@ -33,6 +35,25 @@ end
 
 local previousWatches = {}
 
+-- D1 must only react to MANUAL un-tracks. Apply.Mode / Revert.Revert
+-- untrack in bulk themselves; the resulting QUEST_WATCH_LIST_CHANGED
+-- events are indistinguishable from a user click here, so without a
+-- guard a mode switch with untrackClearsSnapshot ON would prune every
+-- quest the new mode untracked from the snapshot — and revert would
+-- silently restore less than expected. Apply/Revert raise this flag
+-- around their mutations (and through the next frame, since event
+-- dispatch may be deferred); while raised we just resync the baseline.
+local suppressed = false
+
+function Hygiene.SetSuppressed(on)
+    suppressed = on and true or false
+    if not suppressed and ns.ZoneFilter.State then
+        -- Leaving the window: adopt the post-mutation watch list as the
+        -- new baseline so the programmatic changes never diff as manual.
+        previousWatches = ns.ZoneFilter.State.GetCurrentWatches()
+    end
+end
+
 local function UntrackClearsEnabled()
     return QuestFocusCharDB
        and QuestFocusCharDB.zoneFilter
@@ -44,7 +65,7 @@ local function DiffAndMaybePrune()
     if not State or not State.GetCurrentWatches then return end
     local current = State.GetCurrentWatches()
 
-    if State.GetFilterActive() and UntrackClearsEnabled() then
+    if not suppressed and State.GetFilterActive() and UntrackClearsEnabled() then
         local pruned = 0
         for qid in pairs(previousWatches) do
             if not current[qid] then

@@ -33,6 +33,14 @@ function Revert.Revert()
     local current = State.GetCurrentWatches()
     local last    = State.GetLastApplied()
 
+    -- Same guard as Apply.Mode: our bulk watch changes must not read as
+    -- manual un-tracks to Hygiene's D1 diff (see Hygiene.SetSuppressed).
+    local Hygiene = ns.ZoneFilter.Hygiene
+    if Hygiene then
+        Hygiene.SetSuppressed(true)
+        C_Timer.After(0, function() Hygiene.SetSuppressed(false) end)
+    end
+
     -- target = snapshot ∪ drift_adds  (drift_adds = current ∖ lastApplied)
     local target = {}
     for qid in pairs(snap) do target[qid] = true end

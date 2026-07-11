@@ -141,6 +141,15 @@ function Apply.Mode(modeName, opts)
     local current = State.GetCurrentWatches()
     local target  = SelectQuestsBy(predicate)
 
+    -- Our own untracks must not read as manual ones to Hygiene's D1
+    -- diff. Suppress through the next frame — QUEST_WATCH_LIST_CHANGED
+    -- may be dispatched after this function returns.
+    local Hygiene = ns.ZoneFilter.Hygiene
+    if Hygiene then
+        Hygiene.SetSuppressed(true)
+        C_Timer.After(0, function() Hygiene.SetSuppressed(false) end)
+    end
+
     -- Diff: untrack current watches not in target; optionally promote
     -- target quests not currently watched.
     local untracked, tracked = 0, 0
