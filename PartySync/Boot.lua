@@ -6,9 +6,11 @@
 -- list can confirm.
 --
 -- SetActive(false/true) is the runtime hot-toggle path: releases all
--- indicators / dismisses any open tooltip on disable, refreshes them on
--- re-enable. Used by /qf module disable|enable PartySync so the user
--- doesn't have to /reload to apply the toggle.
+-- indicators on disable, refreshes them on re-enable. (An already-open
+-- row tooltip keeps its appended party section until it next hides —
+-- the OnShow hook checks the active flag, so no new sections appear.)
+-- Used by /qf module disable|enable PartySync so the user doesn't have
+-- to /reload to apply the toggle.
 
 local addonName, ns = ...
 ns.PartySync = ns.PartySync or {}
@@ -28,13 +30,11 @@ function ns.PartySync.SetActive(enabled)
     ns.PartySync.active = enabled
 
     local MountTracker = ns.PartySync.UI and ns.PartySync.UI.MountTracker
-    local Tooltip      = ns.PartySync.UI and ns.PartySync.UI.Tooltip
 
     if not enabled then
         if MountTracker and MountTracker.ReleaseAllIndicators then
             MountTracker.ReleaseAllIndicators()
         end
-        if Tooltip and Tooltip.Hide then Tooltip.Hide() end
     else
         -- Mount if it never wired up before (e.g. user re-enables a module
         -- that started disabled). Otherwise Refresh re-populates from
