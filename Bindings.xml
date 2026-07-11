@@ -1,0 +1,15 @@
+<Bindings>
+    <!-- Loaded automatically by the client (root-level Bindings.xml).
+         Display names + handler functions live in QuestFocus.lua
+         (BINDING_NAME_* globals / QuestFocus_Binding* functions).
+         category="ADDONS" groups them under AddOns in the keybinding UI. -->
+    <Binding name="QUESTFOCUS_FOCUS" category="ADDONS">
+        QuestFocus_BindingFocus()
+    </Binding>
+    <Binding name="QUESTFOCUS_FOCUS_ADD" category="ADDONS">
+        QuestFocus_BindingFocusAdd()
+    </Binding>
+    <Binding name="QUESTFOCUS_REVERT" category="ADDONS">
+        QuestFocus_BindingRevert()
+    </Binding>
+</Bindings>

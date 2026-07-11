@@ -35,6 +35,33 @@ boot:SetScript("OnEvent", function(self, event, who)
 end)
 
 -- ============================================================
+-- Keybindings (Bindings.xml) — names + handlers
+-- ============================================================
+
+BINDING_HEADER_QUESTFOCUS         = "QuestFocus"
+BINDING_NAME_QUESTFOCUS_FOCUS     = "Focus current zone"
+BINDING_NAME_QUESTFOCUS_FOCUS_ADD = "Focus current zone + add from log"
+BINDING_NAME_QUESTFOCUS_REVERT    = "Revert tracking"
+
+function QuestFocus_BindingFocus()
+    if ZoneFilterEnabled() and ns.ZoneFilter and ns.ZoneFilter.Apply then
+        ns.ZoneFilter.Apply.Filter(false)
+    end
+end
+
+function QuestFocus_BindingFocusAdd()
+    if ZoneFilterEnabled() and ns.ZoneFilter and ns.ZoneFilter.Apply then
+        ns.ZoneFilter.Apply.Filter(true)
+    end
+end
+
+function QuestFocus_BindingRevert()
+    if ZoneFilterEnabled() and ns.ZoneFilter and ns.ZoneFilter.Revert then
+        ns.ZoneFilter.Revert.Revert()
+    end
+end
+
+-- ============================================================
 -- Slash command dispatch
 -- ============================================================
 
