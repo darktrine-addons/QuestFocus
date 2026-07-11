@@ -89,6 +89,10 @@ frame:RegisterEvent("QUEST_TURNED_IN")
 frame:RegisterEvent("QUEST_REMOVED")
 frame:RegisterEvent("QUEST_WATCH_LIST_CHANGED")
 frame:SetScript("OnEvent", function(self, event, arg1)
+    -- Module gate: wired at file load, so check the enable flag at
+    -- event time — a disabled ZoneFilter must not touch the (possibly
+    -- stale) currentApplication left in the per-char SV.
+    if not (ns.Config and ns.Config.IsModuleEnabled("ZoneFilter")) then return end
     if event == "QUEST_TURNED_IN" or event == "QUEST_REMOVED" then
         PruneOne(arg1)
     elseif event == "QUEST_WATCH_LIST_CHANGED" then

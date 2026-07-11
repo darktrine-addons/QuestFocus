@@ -28,6 +28,11 @@ ns.ZoneFilter.AutoPromote = AutoPromote
 
 local function TryPromote(questID)
     if not questID then return end
+    -- Module gate: this handler is wired at file load, before the
+    -- enable flag is known. A disabled ZoneFilter can still have a
+    -- stale currentApplication in the per-char SV, so without this
+    -- check it would keep auto-promoting.
+    if not (ns.Config and ns.Config.IsModuleEnabled("ZoneFilter")) then return end
     local State     = ns.ZoneFilter.State
     local Relevance = ns.ZoneFilter.Relevance
     if not State or not State.GetFilterActive() then return end
@@ -58,7 +63,7 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("QUEST_ACCEPTED")
 frame:SetScript("OnEvent", function(self, event, questID)
     -- Modern retail QUEST_ACCEPTED signature: (questID).
-    -- Defer one frame: the quest log info (isOnMap / hasLocalPOI) is
+    -- Defer 0.5 s: the quest log info (isOnMap / hasLocalPOI) is
     -- populated asynchronously by the client, so an immediate check can
     -- miss a quest that's about to be flagged zone-relevant.
     C_Timer.After(0.5, function() TryPromote(questID) end)
