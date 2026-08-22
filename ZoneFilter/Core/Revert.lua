@@ -9,6 +9,7 @@
 -- accept-or-untrack get cleaned up.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter = ns.ZoneFilter or {}
 local Revert = {}
 ns.ZoneFilter.Revert = Revert
@@ -19,14 +20,14 @@ end
 
 function Revert.Revert()
     if InCombatLockdown() then
-        notify("cannot revert during combat")
+        notify(L.CHAT_CANNOT_REVERT_COMBAT)
         return
     end
 
     local State = ns.ZoneFilter.State
     local snap = State.GetSnapshot()
     if not snap then
-        notify("no snapshot to revert to")
+        notify(L.CHAT_NO_SNAPSHOT)
         return
     end
 
@@ -68,7 +69,7 @@ function Revert.Revert()
 
     State.ClearFilter()
 
-    notify(string.format("revert: restored %d, removed %d", added, removed))
+    notify(string.format(L.CHAT_REVERTED, added, removed))
 
     if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then ns.ZoneFilter.UI.OnStateChanged() end
 end
