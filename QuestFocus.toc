@@ -3,6 +3,7 @@
 ## Title: QuestFocus
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 ## Notes: Zone-filter your tracked quests, and see party progress on each tracker row at a glance.
+## Notes-zhCN: 按区域筛选你的追踪任务，并一目了然地查看每个追踪行上的小队进度。
 ## Author: artherion77
 ## Version: @project-version@
 ## Category-enUS: Quests
@@ -13,6 +14,7 @@
 
 Localizations\Localization.lua
 Localizations\enUS.lua
+Localizations\zhCN.lua
 
 Core\Config.lua
 Core\Settings.lua
