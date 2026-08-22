@@ -26,6 +26,7 @@
 --   Hidden / not-on-quest rows depend on BNet visibility.   (footer when relevant)
 
 local addonName, ns = ...
+local L = ns.L
 ns.PartySync    = ns.PartySync    or {}
 ns.PartySync.UI = ns.PartySync.UI or {}
 local Tooltip = {}
@@ -54,8 +55,8 @@ local function StateColor(state)
 end
 
 local function FormatState(state, player)
-    if state == "complete"     then return "Ready to turn in" end
-    if state == "not_on_quest" then return "Not on quest"     end
+    if state == "complete"     then return L.PARTY_READY_TO_TURN_IN end
+    if state == "not_on_quest" then return L.PARTY_NOT_ON_QUEST     end
     if state == "in_progress"  then
         local done, total = 0, 0
         if player and player.objectives then
@@ -64,8 +65,8 @@ local function FormatState(state, player)
                 if obj.completed then done = done + 1 end
             end
         end
-        if total > 0 then return string.format("In progress (%d/%d)", done, total) end
-        return "In progress"
+        if total > 0 then return string.format(L.PARTY_IN_PROGRESS_COUNT, done, total) end
+        return L.PARTY_IN_PROGRESS
     end
     return "—"
 end
@@ -116,8 +117,7 @@ local function AppendSummary(tooltip, questID)
     end
     if onQuest + notOn == 0 then return end
     tooltip:AddLine(" ")
-    tooltip:AddLine(string.format(
-        "Party: |cffffffff%d|r on quest · |cff66ff66%d|r ready · |cff888888%d|r not on it",
+    tooltip:AddLine(string.format(L.PARTY_SUMMARY,
         onQuest, ready, notOn), 0.82, 0.82, 0.82)
     tooltip:Show()
 end
@@ -140,14 +140,14 @@ function Tooltip.AppendForQuest(tooltip, questID)
     end
 
     tooltip:AddLine(" ")
-    tooltip:AddLine("Party state:", 0.82, 0.82, 0.82)
+    tooltip:AddLine(L.PARTY_STATE, 0.82, 0.82, 0.82)
 
     -- "You" row first
     local selfData = Fetch.GetSelfProgress(questID)
     local anyNotOnQuest = false
     if selfData then
         local state = Fetch.GetPlayerStateForQuest(selfData)
-        AppendMemberRow(tooltip, "You", select(2, UnitClass("player")), state, selfData)
+        AppendMemberRow(tooltip, L.PARTY_YOU, select(2, UnitClass("player")), state, selfData)
     end
 
     -- Partymate rows, sorted by state then name
@@ -183,17 +183,17 @@ function Tooltip.AppendForQuest(tooltip, questID)
             return string.format("|cff%02x%02x%02x●|r %s",
                 c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5, label)
         end
-        tooltip:AddLine(string.format("Dot:  %s   %s   %s   %s",
-            swatch("ready_turn_in",   "ready"),
-            swatch("alone_shareable", "share"),
-            swatch("mixed",           "mixed"),
-            swatch("aligned",         "aligned")), 0.55, 0.55, 0.55)
+        tooltip:AddLine(string.format(L.PARTY_DOT_LEGEND,
+            swatch("ready_turn_in",   L.PARTY_DOT_READY),
+            swatch("alone_shareable", L.PARTY_DOT_SHARE),
+            swatch("mixed",           L.PARTY_DOT_MIXED),
+            swatch("aligned",         L.PARTY_DOT_ALIGNED)), 0.55, 0.55, 0.55)
     end
 
     -- BNet visibility footer (only when relevant)
     if anyNotOnQuest then
         tooltip:AddLine(" ")
-        tooltip:AddLine("Hidden / not-on-quest rows depend on BNet visibility.",
+        tooltip:AddLine(L.PARTY_VISIBILITY_FOOTER,
             0.55, 0.55, 0.55, true)
     end
 

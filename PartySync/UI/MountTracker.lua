@@ -25,6 +25,7 @@
 --     upvalues, not on Blizzard objects.
 
 local addonName, ns = ...
+local L = ns.L
 ns.PartySync    = ns.PartySync    or {}
 ns.PartySync.UI = ns.PartySync.UI or {}
 local MountTracker = {}
@@ -103,8 +104,7 @@ local function MaybeShowFirstDotHint()
     if not ns.Config then return end
     if ns.Config.GetPartySyncSetting("dotHintShown") then return end
     ns.Config.SetPartySyncSetting("dotHintShown", true)
-    print("|cffffcc00QuestFocus|r Party dots are live — hover a quest row for each"
-        .. " member's progress. Colours and shapes: |cffffff88/qf settings|r.")
+    print("|cffffcc00QuestFocus|r " .. L.CHAT_DOT_HINT)
 end
 
 local function Refresh()
