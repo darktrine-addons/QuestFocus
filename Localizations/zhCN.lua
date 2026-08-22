@@ -244,10 +244,10 @@ L.PARTY_SUMMARY           = "队伍：|cffffffff%d|r 人进行中 · |cff66ff66%
 L.PARTY_STATE             = "队伍状态："
 L.PARTY_YOU               = "你"
 L.PARTY_DOT_LEGEND        = "状态指示器：  %s   %s   %s   %s"
-L.PARTY_DOT_READY         = "可交"
+L.PARTY_DOT_READY         = "有人可交"
 L.PARTY_DOT_SHARE         = "可共享"
-L.PARTY_DOT_MIXED         = "混合"
-L.PARTY_DOT_ALIGNED       = "一致"
+L.PARTY_DOT_MIXED         = "部分接取"
+L.PARTY_DOT_ALIGNED       = "全部接取"
 L.PARTY_VISIBILITY_FOOTER = "隐藏 / 未接任务的成员行取决于战网可见性。"
 
 end
