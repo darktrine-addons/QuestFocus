@@ -13,10 +13,7 @@
 ## X-Curse-Project-ID: 1544844
 ## X-Wago-ID: RNLkP0Go
 
-Localizations\Localization.lua
-Localizations\enUS.lua
-Localizations\zhCN.lua
-Localizations\zhTW.lua
+Localizations\Localization.xml
 
 Core\Config.lua
 Core\Settings.lua
