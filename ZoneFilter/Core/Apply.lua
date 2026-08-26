@@ -17,6 +17,7 @@
 -- predicate, the diff, and the slash-print.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter = ns.ZoneFilter or {}
 local Apply = {}
 ns.ZoneFilter.Apply = Apply
@@ -70,16 +71,16 @@ local PREDICATES = {
     inProgressOnly = function(info) return not QuestIsComplete(info.questID) end,
 }
 
-local MODE_LABELS = {
-    zoneFilter     = "zone-filter",
-    untrackAll     = "untrack-all",
-    trackAll       = "track-all",
-    campaignOnly   = "campaign-only",
-    dailyOnly      = "daily-only",
-    weekliesOnly   = "weeklies-only",
-    importantOnly  = "important-only",
-    readyOnly      = "ready-to-turn-in",
-    inProgressOnly = "in-progress",
+local MODE_CHAT_KEY = {
+    zoneFilter     = "CHAT_MODE_ZONE_FILTER",
+    untrackAll     = "CHAT_MODE_UNTRACK_ALL",
+    trackAll       = "CHAT_MODE_TRACK_ALL",
+    campaignOnly   = "CHAT_MODE_CAMPAIGN",
+    dailyOnly      = "CHAT_MODE_DAILY",
+    weekliesOnly   = "CHAT_MODE_WEEKLIES",
+    importantOnly  = "CHAT_MODE_IMPORTANT",
+    readyOnly      = "CHAT_MODE_READY",
+    inProgressOnly = "CHAT_MODE_IN_PROGRESS",
 }
 
 -- ============================================================
@@ -137,12 +138,12 @@ end
 function Apply.Mode(modeName, opts)
     opts = opts or {}
     if InCombatLockdown() then
-        notify("cannot change tracker during combat")
+        notify(L.CHAT_CANNOT_CHANGE_COMBAT)
         return
     end
     local predicate = PREDICATES[modeName]
     if not predicate then
-        notify("unknown mode: " .. tostring(modeName))
+        notify(string.format(L.CHAT_UNKNOWN_MODE, tostring(modeName)))
         return
     end
 
@@ -194,8 +195,7 @@ function Apply.Mode(modeName, opts)
     -- revert).
     State.TransitionToMode(modeName, actualTarget, current)
 
-    notify(string.format("%s: tracked %d, untracked %d - '/qf revert' to revert",
-        MODE_LABELS[modeName] or modeName, tracked, untracked))
+    notify(L.CHAT_APPLIED:format(L[MODE_CHAT_KEY[modeName]] or modeName, tracked, untracked))
 
     if ns.ZoneFilter.UI and ns.ZoneFilter.UI.OnStateChanged then
         ns.ZoneFilter.UI.OnStateChanged()
@@ -208,7 +208,7 @@ end
 function Apply.Filter(addFromLog)
     local Relevance = ns.ZoneFilter.Relevance
     if not Relevance or not Relevance.GetCurrentMapID() then
-        notify("could not determine current zone")
+        notify(L.CHAT_NO_ZONE)
         return
     end
     Apply.Mode("zoneFilter", { narrowOnly = not addFromLog })

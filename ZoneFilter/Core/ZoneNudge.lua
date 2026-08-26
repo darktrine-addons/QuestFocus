@@ -19,6 +19,7 @@
 -- combat, skipped when the watch list already matches the new zone.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter = ns.ZoneFilter or {}
 local ZoneNudge = {}
 ns.ZoneFilter.ZoneNudge = ZoneNudge
@@ -70,11 +71,10 @@ local function TryNudge()
         ns.ZoneFilter.UI.PulseLens()
     end
 
-    local zone = GetZoneText() or "this zone"
+    local zone = GetZoneText() or L.CHAT_THIS_ZONE
     print(string.format(
-        "|cffffcc00QuestFocus|r Zone changed — %s has |cffffffff%d|r of your quests. "
-        .. "|H%s|h|cff44ff44[Re-focus]|r|h",
-        zone, here, LINK))
+        "|cffffcc00QuestFocus|r " .. L.CHAT_ZONE_CHANGED .. " |H%s|h|cff44ff44%s|r|h",
+        zone, here, LINK, L.CHAT_REFOCUS_LINK))
 end
 
 local frame = CreateFrame("Frame")

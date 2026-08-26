@@ -4,6 +4,7 @@
 -- both files see them as proper upvalues.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter    = ns.ZoneFilter    or {}
 ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
@@ -18,13 +19,13 @@ ns.ZoneFilter.UI.WARN_ICON = "|A:services-icon-warning:14:14|a"
 -- re-apply button's tooltip. Falls back to the raw mode key for
 -- unknown values; mode-key-to-label.
 ns.ZoneFilter.UI.MODE_DISPLAY = {
-    zoneFilter     = "current zone (Focus)",
-    trackAll       = "all in log",
-    campaignOnly   = "campaign quests only",
-    dailyOnly      = "daily quests only",
-    weekliesOnly   = "weeklies only",
-    importantOnly  = "Important quests only",
-    readyOnly      = "ready-to-turn-in only",
-    inProgressOnly = "in-progress only",
-    untrackAll     = "untrack-all",
+    zoneFilter     = L.MODE_ZONE_FILTER,
+    trackAll       = L.MODE_TRACK_ALL,
+    campaignOnly   = L.MODE_CAMPAIGN,
+    dailyOnly      = L.MODE_DAILY,
+    weekliesOnly   = L.MODE_WEEKLIES,
+    importantOnly  = L.MODE_IMPORTANT,
+    readyOnly      = L.MODE_READY,
+    inProgressOnly = L.MODE_IN_PROGRESS,
+    untrackAll     = L.MODE_UNTRACK_ALL,
 }

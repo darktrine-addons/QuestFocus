@@ -5,6 +5,7 @@
 -- the shared WARN_ICON.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter    = ns.ZoneFilter    or {}
 ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
@@ -25,9 +26,9 @@ local function FormatModeLabel(label, count, opts)
     end
     local suffix = ""
     if opts.activeState == "clean" then
-        suffix = " |cff44ff44(active)|r"
+        suffix = " |cff44ff44" .. L.MENU_ACTIVE .. "|r"
     elseif opts.activeState == "drift" then
-        suffix = " |cffff8c26(drifted)|r"
+        suffix = " |cffff8c26" .. L.MENU_DRIFTED .. "|r"
     end
     if count == 0 then
         return string.format("%s%s |cffaaaaaa(0)|r %s%s", prefix, label, WARN_ICON, suffix)
@@ -37,7 +38,7 @@ end
 
 function Menu.Show(button)
     if not MenuUtil or not MenuUtil.CreateContextMenu then
-        print("|cffffcc00QuestFocus|r menu API unavailable on this client.")
+        print("|cffffcc00QuestFocus|r " .. L.MENU_API_UNAVAILABLE)
         return
     end
     local Apply     = ns.ZoneFilter.Apply
@@ -55,7 +56,7 @@ function Menu.Show(button)
     end
 
     MenuUtil.CreateContextMenu(button, function(owner, root)
-        root:CreateTitle("Tracker modes")
+        root:CreateTitle(L.MENU_TITLE)
 
         local function addModeItem(label, modeName, opts)
             opts = opts or {}
@@ -75,42 +76,42 @@ function Menu.Show(button)
         end
 
         -- Broadest first.
-        addModeItem("Track all quests in log", "trackAll")
+        addModeItem(L.MENU_TRACK_ALL, "trackAll")
 
         root:CreateDivider()
 
         -- Zone filter — also bound to the button's left/shift-left clicks.
-        addFilterItem("Track current zone (Focus)",         false, { binding = "Left-click" })
-        addFilterItem("Track current zone + add from log",  true,  { binding = "Shift+Left-click" })
+        addFilterItem(L.MENU_FOCUS,     false, { binding = L.KEY_LEFT_CLICK })
+        addFilterItem(L.MENU_FOCUS_ADD, true,  { binding = L.KEY_SHIFT_LEFT_CLICK })
 
         root:CreateDivider()
 
         -- By quest type.
-        addModeItem("Track campaign quests only",  "campaignOnly")
-        addModeItem("Track daily quests only",     "dailyOnly")
-        addModeItem("Track weeklies only",         "weekliesOnly")
-        addModeItem("Track Important quests only", "importantOnly")
+        addModeItem(L.MENU_CAMPAIGN,  "campaignOnly")
+        addModeItem(L.MENU_DAILY,     "dailyOnly")
+        addModeItem(L.MENU_WEEKLIES,  "weekliesOnly")
+        addModeItem(L.MENU_IMPORTANT, "importantOnly")
 
         root:CreateDivider()
 
         -- By quest state.
-        addModeItem("Track ready-to-turn-in only", "readyOnly")
-        addModeItem("Track in-progress only",      "inProgressOnly")
+        addModeItem(L.MENU_READY,       "readyOnly")
+        addModeItem(L.MENU_IN_PROGRESS, "inProgressOnly")
 
         root:CreateDivider()
 
         -- Destructive.
-        addModeItem("Untrack everything", "untrackAll")
+        addModeItem(L.MENU_UNTRACK_ALL, "untrackAll")
 
         root:CreateDivider()
 
-        root:CreateButton("Open settings…", function()
+        root:CreateButton(L.MENU_OPEN_SETTINGS, function()
             if ns.Settings and ns.Settings.Open then ns.Settings.Open() end
         end)
 
         -- Footer: explain the warning glyph.
         root:CreateDivider()
-        root:CreateTitle(WARN_ICON .. " action would clear the tracker (it hides).")
-        root:CreateTitle("|cffaaaaaa/qf revert restores the previous state.|r")
+        root:CreateTitle(WARN_ICON .. " " .. L.MENU_WARN_FOOTER)
+        root:CreateTitle("|cffaaaaaa" .. L.MENU_REVERT_FOOTER .. "|r")
     end)
 end
