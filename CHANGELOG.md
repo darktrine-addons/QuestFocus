@@ -3,6 +3,17 @@
 User-facing changes, newest first. Internal and dev-tooling work lives in the
 git history, not here.
 
+## [v0.9.4-beta](https://github.com/darktrine-addons/QuestFocus/releases/tag/v0.9.4-beta) — 2026-11-22
+
+- feat: **keybindings** for *Focus current zone*, *Focus current zone + add from log* and *Revert tracking* (under *Keybindings → AddOns*).
+- feat: **zone-change reminder** — with the zone filter active, entering a new zone pulses the filter button and prints a chat line with a one-click **[Re-focus]** link. On by default; per-character setting.
+- feat: `/qf settings` (also `options` / `config`) opens the settings panel.
+- feat: newly accepted quests are auto-tracked whenever they match the **active** tracker mode, not only the zone filter.
+- feat: in large groups the party tooltip shows a one-line summary instead of disappearing.
+- feat: dot colour legend in the party tooltip, plus a one-time chat hint the first time dots appear.
+- chore: clearer wording — "promote" is now "add from log"; snapshot option renamed "Revert respects manual un-tracks". Slash commands unchanged.
+- chore: updated for WoW patch 12.1.5, ready for 12.1.7 (Interface 120105, 120107).
+
 ## [v0.9.3-beta](https://github.com/darktrine-addons/QuestFocus/releases/tag/v0.9.3-beta) — 2026-07-11
 
 - fix: **stopped the error spam with Circle indicators** — with the Circle shape (the default) selected, PartySync threw a Lua error on every refresh while you were in a group, which could flood BugSack in delves and dungeons. Circle dots now render correctly on client 12.0.7, and fall back to Square if the client can't do mask textures at all.
