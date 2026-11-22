@@ -3,6 +3,10 @@
 User-facing changes, newest first. Internal and dev-tooling work lives in the
 git history, not here.
 
+## [v0.9.5-beta](https://github.com/darktrine-addons/QuestFocus/releases/tag/v0.9.5-beta) — 2026-11-22
+
+- feat: **WoW Forever support** — one download for Retail and Forever (Interface 16001 added). Campaign, weeklies and Important modes will mostly be empty in Forever.
+
 ## [v0.9.4-beta](https://github.com/darktrine-addons/QuestFocus/releases/tag/v0.9.4-beta) — 2026-11-22
 
 - feat: **keybindings** for *Focus current zone*, *Focus current zone + add from log* and *Revert tracking* (under *Keybindings → AddOns*).
