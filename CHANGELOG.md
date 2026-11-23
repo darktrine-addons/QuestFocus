@@ -3,6 +3,11 @@
 User-facing changes, newest first. Internal and dev-tooling work lives in the
 git history, not here.
 
+## [v1.0.0](https://github.com/darktrine-addons/QuestFocus/releases/tag/v1.0.0) — 2026-11-23
+
+- **Out of beta.**
+- feat: **Simplified and Traditional Chinese translations** (zhCN, zhTW) for the settings panel, menus, tooltips, keybindings and chat messages — thanks to Lograthmic ([#3](https://github.com/darktrine-addons/QuestFocus/pull/3)).
+
 ## [v0.9.5-beta](https://github.com/darktrine-addons/QuestFocus/releases/tag/v0.9.5-beta) — 2026-11-22
 
 - feat: **WoW Forever support** — one download for Retail and Forever (Interface 16001 added). Campaign, weeklies and Important modes will mostly be empty in Forever.

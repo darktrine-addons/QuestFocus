@@ -1,12 +1,12 @@
 # QuestFocus
 
-> 🚧 **Beta in active development.** Core features work and the addon is daily-driver stable, but the surface is still evolving — expect occasional polish-level changes between releases. Feedback, bug reports, and feature ideas welcome on the [issue tracker](https://github.com/darktrine-addons/QuestFocus/issues).
+> Feedback, bug reports, and feature ideas welcome on the [issue tracker](https://github.com/darktrine-addons/QuestFocus/issues).
 
 **Make the quest tracker do exactly what you want, at a glance.**
 
 QuestFocus puts a couple of small buttons on the objective tracker that narrow your watch list to what you actually care about right now — the zone you're in, the campaign you're following, weeklies you haven't finished, or any one of nine tracker modes you pick from a right-click menu. When you're in a party, every tracked row gets a coloured dot showing how the quest stands across your group: who has it, who's ready to turn in, who isn't on it at all. Hover the row and you'll see the per-member breakdown right inside Blizzard's own quest tooltip.
 
-Works on **Retail** (Midnight, 12.1.5+) and **WoW Forever** — the same download covers both.
+Works on **Retail** (Midnight, 12.1.5+) and **WoW Forever** — the same download covers both. Available in English, Simplified Chinese and Traditional Chinese.
 
 ---
 
