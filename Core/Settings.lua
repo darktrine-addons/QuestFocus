@@ -13,6 +13,8 @@
 -- says so.
 
 local addonName, ns = ...
+local L = ns.L
+
 ns.Settings = ns.Settings or {}
 
 local registered     = false
@@ -44,12 +46,12 @@ local effective      = {}
 --    extends.
 
 local PREVIEW_STATES     = { "aligned", "mixed", "ready_turn_in", "alone_shareable" }
-local PREVIEW_LABEL_TEXT = { "Aligned", "Mixed", "Ready",         "Shareable"       }
+local PREVIEW_LABEL_TEXT = { L.PREVIEW_ALIGNED, L.PREVIEW_MIXED, L.PREVIEW_READY, L.PREVIEW_SHAREABLE }
 local PREVIEW_TOOLTIPS   = {
-    "Every party member is on this quest and progressing. No coordination needed.",
-    "Some party members are on the quest, some aren't. Worth checking in.",
-    "At least one party member has the quest objectives complete and ready to turn in.",
-    "Only you have this quest, and at least one partymate is in the same zone — share opportunity.",
+    L.PREVIEW_TIP_ALIGNED,
+    L.PREVIEW_TIP_MIXED,
+    L.PREVIEW_TIP_READY,
+    L.PREVIEW_TIP_SHAREABLE,
 }
 local PREVIEW_DURATION   = 30
 
@@ -172,7 +174,7 @@ end
 -- row gracefully (preview just doesn't appear).
 local function MakeInlinePreviewInitializer()
     if not Settings or not Settings.CreateElementInitializer then return nil end
-    local data = { name = "Style preview" }
+    local data = { name = L.SETTING_STYLE_PREVIEW }
     local init = Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", data)
     if not init then return nil end
     init.GetExtent = function() return 90 end
@@ -231,7 +233,7 @@ local function ShowOrExtendPreview()
 
     local blocks, total = PickVisibleBlocks(#PREVIEW_STATES)
     if total == 0 then
-        print("|cffffcc00QuestFocus|r no quests tracked — nothing to preview.")
+        print("|cffffcc00QuestFocus|r " .. L.CHAT_NOTHING_TO_PREVIEW)
         return
     end
 
@@ -300,7 +302,7 @@ function ns.Settings.Register()
     -- ===========================================================
     -- Section: Global
     -- ===========================================================
-    AddSectionHeader("Global")
+    AddSectionHeader(L.SECTION_GLOBAL)
 
     -- ZoneFilter toggle (requires /reload)
     local zfSetting = Settings.RegisterAddOnSetting(
@@ -309,15 +311,12 @@ function ns.Settings.Register()
         "enabled",
         QuestFocusDB.modules.ZoneFilter,
         Settings.VarType.Boolean,
-        "Enable ZoneFilter",
+        L.SETTING_ZF_ENABLE,
         true)
     Settings.CreateCheckbox(
         category,
         zfSetting,
-        "Filter your watch list to quests with objectives in the current zone, "
-        .. "with one-click revert. Adds two small buttons to the objective tracker "
-        .. "and the world-map quest log.\n\n"
-        .. "|cffff8c26Requires /reload to apply changes to this checkbox.|r")
+        L.SETTING_ZF_ENABLE_TIP)
 
     -- PartySync toggle (hot-toggle)
     local psSetting = Settings.RegisterAddOnSetting(
@@ -326,15 +325,12 @@ function ns.Settings.Register()
         "enabled",
         QuestFocusDB.modules.PartySync,
         Settings.VarType.Boolean,
-        "Enable PartySync",
+        L.SETTING_PS_ENABLE,
         true)
     Settings.CreateCheckbox(
         category,
         psSetting,
-        "Coloured indicator dots on each tracked quest row when you're in a party, "
-        .. "plus a 'Party state:' section appended to the row's tooltip showing "
-        .. "every member's progress.\n\n"
-        .. "|cff44ff44Applied immediately.|r")
+        L.SETTING_PS_ENABLE_TIP)
 
     psSetting:SetValueChangedCallback(function(setting, value)
         if ns.PartySync and ns.PartySync.SetActive then
@@ -350,16 +346,15 @@ function ns.Settings.Register()
     if CreateSettingsButtonInitializer and layout and layout.AddInitializer then
         local reloadInit = CreateSettingsButtonInitializer(
             "",                  -- no left label
-            "Reload UI",         -- button text
+            L.SETTING_RELOAD_UI,     -- button text
             function()
                 if HasReloadDirty() then
                     ReloadUI()
                 else
-                    print("|cffffcc00QuestFocus|r No pending changes require a UI reload.")
+                    print("|cffffcc00QuestFocus|r " .. L.CHAT_NO_RELOAD_PENDING)
                 end
             end,
-            "Click to /reload when a setting marked 'Requires /reload' has been changed. "
-            .. "No-op when nothing is pending.",
+            L.SETTING_RELOAD_UI_TIP,
             true)
         layout:AddInitializer(reloadInit)
     end
@@ -367,7 +362,7 @@ function ns.Settings.Register()
     -- ===========================================================
     -- Section: ZoneFilter (behaviour preferences, per-character)
     -- ===========================================================
-    AddSectionHeader("ZoneFilter")
+    AddSectionHeader(L.SECTION_ZONEFILTER)
 
     -- D1: per-character "untrack also clears the snapshot".
     QuestFocusCharDB.zoneFilter = QuestFocusCharDB.zoneFilter or {}
@@ -380,17 +375,12 @@ function ns.Settings.Register()
         "untrackClearsSnapshot",
         QuestFocusCharDB.zoneFilter,
         Settings.VarType.Boolean,
-        "Revert respects manual un-tracks",
+        L.SETTING_ZF_UNTACK_CLEARS,
         false)
     Settings.CreateCheckbox(
         category,
         untrackClearsSetting,
-        "When checked, quests you un-track by hand while a filter is "
-        .. "active are treated as deliberate: Revert won't bring them "
-        .. "back. Per-character.\n\n"
-        .. "|cffaaaaaaDefault off: Revert restores your watch list exactly "
-        .. "as it was when you applied the filter, even if you un-tracked "
-        .. "some of those quests since.|r")
+        L.SETTING_ZF_UNTACK_CLEARS_TIP)
 
     -- Zone-change reminder (nudge, not auto-apply — see ZoneNudge.lua).
     if QuestFocusCharDB.zoneFilter.zoneChangeNudge == nil then
@@ -402,19 +392,17 @@ function ns.Settings.Register()
         "zoneChangeNudge",
         QuestFocusCharDB.zoneFilter,
         Settings.VarType.Boolean,
-        "Zone-change reminder",
+        L.SETTING_ZF_ZONE_NUDGE,
         true)
     Settings.CreateCheckbox(
         category,
         nudgeSetting,
-        "When the zone filter is active and you enter a new zone, pulse "
-        .. "the lens and print a chat line with a one-click [Re-focus] "
-        .. "link. Nothing is re-tracked until you click. Per-character.")
+        L.SETTING_ZF_ZONE_NUDGE_TIP)
 
     -- ===========================================================
     -- Section: PartySync (visual settings)
     -- ===========================================================
-    AddSectionHeader("PartySync")
+    AddSectionHeader(L.SECTION_PARTYSYNC)
 
     local function RefreshIndicators()
         local MT = ns.PartySync and ns.PartySync.UI and ns.PartySync.UI.MountTracker
@@ -441,99 +429,90 @@ function ns.Settings.Register()
     -- B1: size
     local sizeSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Size", "indicatorSize",
-        QuestFocusDB.partySync, Settings.VarType.Number, "Indicator size", 10)
+        QuestFocusDB.partySync, Settings.VarType.Number, L.SETTING_PS_SIZE, 10)
     Settings.CreateDropdown(category, sizeSetting,
         function()
             local c = Settings.CreateControlTextContainer()
-            c:Add(6,  "Tiny (6px)")
-            c:Add(8,  "Small (8px)")
-            c:Add(10, "Medium (10px)")
-            c:Add(12, "Large (12px)")
+            c:Add(6,  L.SIZE_TINY)
+            c:Add(8,  L.SIZE_SMALL)
+            c:Add(10, L.SIZE_MEDIUM)
+            c:Add(12, L.SIZE_LARGE)
             return c:GetData()
         end,
-        "Diameter of the indicator dot on each tracked quest row.")
+        L.SETTING_PS_SIZE_TIP)
     sizeSetting:SetValueChangedCallback(RefreshIndicators)
 
     -- B2: shape
     local shapeSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Shape", "indicatorShape",
-        QuestFocusDB.partySync, Settings.VarType.String, "Indicator shape", "circle")
+        QuestFocusDB.partySync, Settings.VarType.String, L.SETTING_PS_SHAPE, "circle")
     Settings.CreateDropdown(category, shapeSetting,
         function()
             local c = Settings.CreateControlTextContainer()
-            c:Add("square",  "Square")
-            c:Add("circle",  "Circle")
-            c:Add("diamond", "Diamond")
+            c:Add("square",  L.SHAPE_SQUARE)
+            c:Add("circle",  L.SHAPE_CIRCLE)
+            c:Add("diamond", L.SHAPE_DIAMOND)
             return c:GetData()
         end,
-        "Shape of the indicator dot. Circle uses a circular alpha mask "
-        .. "over the solid colour; diamond is the same texture rotated 45°.")
+        L.SETTING_PS_SHAPE_TIP)
     shapeSetting:SetValueChangedCallback(RefreshIndicators)
 
     -- B3: anchor position
     local anchorSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Anchor", "indicatorAnchor",
-        QuestFocusDB.partySync, Settings.VarType.String, "Indicator position", "leftOfTitle")
+        QuestFocusDB.partySync, Settings.VarType.String, L.SETTING_PS_ANCHOR, "leftOfTitle")
     Settings.CreateDropdown(category, anchorSetting,
         function()
             local c = Settings.CreateControlTextContainer()
-            c:Add("topRight",       "Top-right corner")
-            c:Add("rightOfTitle",   "Right of title text")
-            c:Add("leftOfTitle",    "Left of title text")
+            c:Add("topRight",       L.ANCHOR_TOP_RIGHT)
+            c:Add("rightOfTitle",   L.ANCHOR_RIGHT_OF_TITLE)
+            c:Add("leftOfTitle",    L.ANCHOR_LEFT_OF_TITLE)
             return c:GetData()
         end,
-        "Where to place the indicator on each tracker row. 'Left of title' is "
-        .. "offset 30px to clear the quest-type icon. Either 'of title' option "
-        .. "falls back to the top-right corner when the row's title text isn't found.")
+        L.SETTING_PS_ANCHOR_TIP)
     anchorSetting:SetValueChangedCallback(RefreshIndicators)
 
     -- B4: palette (colour-vision options)
     local paletteSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Palette", "palette",
-        QuestFocusDB.partySync, Settings.VarType.String, "Colour palette", "default")
+        QuestFocusDB.partySync, Settings.VarType.String, L.SETTING_PS_PALETTE, "default")
     Settings.CreateDropdown(category, paletteSetting,
         function()
             local c = Settings.CreateControlTextContainer()
-            c:Add("default",      "Default (G/Y/B/O)")
-            c:Add("deuteranopia", "Deuteranopia (red-green friendly)")
-            c:Add("tritanopia",   "Tritanopia (blue-yellow friendly)")
+            c:Add("default",      L.PALETTE_DEFAULT)
+            c:Add("deuteranopia", L.PALETTE_DEUTERANOPIA)
+            c:Add("tritanopia",   L.PALETTE_TRITANOPIA)
             return c:GetData()
         end,
-        "Alternate colour palettes for users with colour-vision differences. "
-        .. "Default = green / yellow / blue / orange.")
+        L.SETTING_PS_PALETTE_TIP)
     paletteSetting:SetValueChangedCallback(RefreshIndicators)
 
     -- B5: opacity
     local opacitySetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_Opacity", "indicatorOpacity",
-        QuestFocusDB.partySync, Settings.VarType.Number, "Indicator opacity", 1.0)
+        QuestFocusDB.partySync, Settings.VarType.Number, L.SETTING_PS_OPACITY, 1.0)
     local opacityOptions = Settings.CreateSliderOptions(0.4, 1.0, 0.1)
     if opacityOptions.SetLabelFormatter and MinimalSliderWithSteppersMixin then
         opacityOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right,
             function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end)
     end
     Settings.CreateSlider(category, opacitySetting, opacityOptions,
-        "Brightness of the indicator dots. 40% blends them into the background; "
-        .. "100% is fully opaque.")
+        L.SETTING_PS_OPACITY_TIP)
     opacitySetting:SetValueChangedCallback(RefreshIndicators)
 
     -- D5: raid threshold — summarize per-member tooltip in large groups.
     local raidThresholdSetting = Settings.RegisterAddOnSetting(
         category, "QuestFocus_PS_RaidThreshold", "raidThreshold",
-        QuestFocusDB.partySync, Settings.VarType.Number, "Summarize tooltip in large groups", 10)
+        QuestFocusDB.partySync, Settings.VarType.Number, L.SETTING_PS_RAID_THRESHOLD, 10)
     Settings.CreateDropdown(category, raidThresholdSetting,
         function()
             local c = Settings.CreateControlTextContainer()
-            c:Add(0,  "Always show full list")
-            c:Add(10, "Summarize at 10+ members")
-            c:Add(20, "Summarize at 20+ members")
+            c:Add(0,  L.RAID_ALWAYS)
+            c:Add(10, L.RAID_AT_10)
+            c:Add(20, L.RAID_AT_20)
             return c:GetData()
         end,
-        "In larger groups the per-member 'Party state' tooltip list would "
-        .. "be too long. Once the group size meets the threshold, it's "
-        .. "replaced by a one-line rollup: how many members are on the "
-        .. "quest, ready to turn in, or not on it. Indicator dots "
-        .. "still show as usual.")
+        L.SETTING_PS_RAID_THRESHOLD_TIP)
 
     -- Inline permanent style preview — a layout-flow row between the
     -- visual settings and the Preview-on-tracker button.
@@ -549,13 +528,9 @@ function ns.Settings.Register()
     if CreateSettingsButtonInitializer and layout and layout.AddInitializer then
         local previewInit = CreateSettingsButtonInitializer(
             "",
-            "Preview on tracker (30s)",
+            L.SETTING_PREVIEW_TRACKER,
             ShowOrExtendPreview,
-            "Temporarily attaches up to 4 demo indicator dots to your "
-            .. "tracker rows so you can see how the current style looks "
-            .. "in context. Truncates if fewer than 4 quests are tracked; "
-            .. "no-op when nothing is tracked. Click again to extend the "
-            .. "30s timer; closing the settings panel ends the preview.",
+            L.SETTING_PREVIEW_TRACKER_TIP,
             true)
         layout:AddInitializer(previewInit)
     end

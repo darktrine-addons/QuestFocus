@@ -4,6 +4,7 @@
 -- Future modules (PartySync, …) plug in alongside the same dispatcher.
 
 local addonName, ns = ...
+local L = ns.L
 
 local function ZoneFilterEnabled()
     return ns.Config and ns.Config.IsModuleEnabled("ZoneFilter")
@@ -38,10 +39,10 @@ end)
 -- Keybindings (Bindings.xml) — names + handlers
 -- ============================================================
 
-BINDING_HEADER_QUESTFOCUS         = "QuestFocus"
-BINDING_NAME_QUESTFOCUS_FOCUS     = "Focus current zone"
-BINDING_NAME_QUESTFOCUS_FOCUS_ADD = "Focus current zone + add from log"
-BINDING_NAME_QUESTFOCUS_REVERT    = "Revert tracking"
+BINDING_HEADER_QUESTFOCUS         = L.BINDING_HEADER
+BINDING_NAME_QUESTFOCUS_FOCUS     = L.BINDING_FOCUS
+BINDING_NAME_QUESTFOCUS_FOCUS_ADD = L.BINDING_FOCUS_ADD
+BINDING_NAME_QUESTFOCUS_REVERT    = L.BINDING_REVERT
 
 function QuestFocus_BindingFocus()
     if ZoneFilterEnabled() and ns.ZoneFilter and ns.ZoneFilter.Apply then
@@ -66,24 +67,24 @@ end
 -- ============================================================
 
 local function colourEnabled(enabled)
-    return enabled and "|cff44ff44enabled|r" or "|cffff7777disabled|r"
+    return enabled and ("|cff44ff44" .. L.STATUS_ENABLED .. "|r") or ("|cffff7777" .. L.STATUS_DISABLED .. "|r")
 end
 
 local function ModuleStatus(name)
     local enabled = ns.Config.IsModuleEnabled(name)
-    if not enabled then return "|cffff7777disabled|r" end
+    if not enabled then return "|cffff7777" .. L.STATUS_DISABLED .. "|r" end
     local moduleNs = ns[name]
     local booted = moduleNs and moduleNs.booted == true
-    if booted then return "|cff44ff44enabled (active)|r" end
-    return "|cffffff77enabled (pending boot)|r"
+    if booted then return "|cff44ff44" .. L.STATUS_ACTIVE .. "|r" end
+    return "|cffffff77" .. L.STATUS_PENDING_BOOT .. "|r"
 end
 
 local function PrintModuleList()
-    print("|cffffcc00QuestFocus|r modules:")
+    print("|cffffcc00QuestFocus|r " .. L.CHAT_MODULES)
     for _, name in ipairs(ns.Config.GetKnownModules()) do
         print(string.format("  %s: %s", name, ModuleStatus(name)))
     end
-    print("  |cffaaaaaaToggle with /qf module enable|disable <name>; PartySync applies live, ZoneFilter needs /reload.|r")
+    print("  |cffaaaaaa" .. L.CHAT_TOGGLE_HINT .. "|r")
 end
 
 local function ToggleModule(name, enabled)
@@ -92,7 +93,7 @@ local function ToggleModule(name, enabled)
         if n:lower() == name:lower() then name = n; known = true; break end
     end
     if not known then
-        print(string.format("|cffffcc00QuestFocus|r unknown module: %s", name))
+        print(string.format("|cffffcc00QuestFocus|r " .. L.CHAT_UNKNOWN_MODULE, name))
         return
     end
     ns.Config.SetModuleEnabled(name, enabled)
@@ -102,10 +103,10 @@ local function ToggleModule(name, enabled)
     -- without one).
     if name == "PartySync" and ns.PartySync and ns.PartySync.SetActive then
         ns.PartySync.SetActive(enabled)
-        print(string.format("|cffffcc00QuestFocus|r %s set to %s.",
+        print(string.format("|cffffcc00QuestFocus|r " .. L.CHAT_MODULE_SET,
             name, colourEnabled(enabled)))
     else
-        print(string.format("|cffffcc00QuestFocus|r %s set to %s. |cffaaaaaa/reload|r to apply.",
+        print(string.format("|cffffcc00QuestFocus|r " .. L.CHAT_MODULE_SET_RELOAD,
             name, colourEnabled(enabled)))
     end
 end
@@ -135,21 +136,21 @@ SlashCmdList.QUESTFOCUS = function(msg)
     if msg == "party debug" then
         if ns.PartySync then
             ns.PartySync.debug = not ns.PartySync.debug
-            print(string.format("|cffffcc00QuestFocus|r party debug %s",
-                ns.PartySync.debug and "|cff44ff44ON|r" or "|cffff7777OFF|r"))
+            print(string.format("|cffffcc00QuestFocus|r " .. L.CHAT_PARTY_DEBUG,
+                ns.PartySync.debug and ("|cff44ff44" .. L.STATUS_ON .. "|r") or ("|cffff7777" .. L.STATUS_OFF .. "|r")))
         else
-            print("|cffffcc00QuestFocus|r PartySync module not loaded.")
+            print("|cffffcc00QuestFocus|r " .. L.CHAT_PARTY_NOT_LOADED)
         end
         return
     end
     if msg == "party broadcast on" or msg == "party broadcast off" then
-        print("|cffffcc00QuestFocus|r broadcast is reserved and not yet implemented.")
+        print("|cffffcc00QuestFocus|r " .. L.CHAT_BROADCAST_RESERVED)
         return
     end
 
     -- ZoneFilter commands require ZoneFilter enabled
     if not ZoneFilterEnabled() then
-        print("|cffffcc00QuestFocus|r ZoneFilter module is disabled. |cffaaaaaa/qf module list|r")
+        print("|cffffcc00QuestFocus|r " .. L.CHAT_ZF_DISABLED)
         return
     end
 
@@ -178,14 +179,14 @@ SlashCmdList.QUESTFOCUS = function(msg)
     elseif msg == "status" then
         local active = ns.ZoneFilter.State.GetFilterActive()
         local restorable = ns.ZoneFilter.State.GetRevertAddCount()
-        print(string.format("|cffffcc00QuestFocus|r filter:%s, restorable:%d",
+        print(string.format("|cffffcc00QuestFocus|r " .. L.CHAT_STATUS,
             tostring(active), restorable))
     else
-        print("|cffffcc00QuestFocus|r commands:")
-        print("  |cffffff88/qf|r [filter] | promote | revert | status")
-        print("  Modes: |cffffff88/qf|r all | untrack | campaign | daily | weekly | important | ready | inprogress")
-        print("  |cffffff88/qf|r settings")
-        print("  |cffffff88/qf|r module list | module enable|disable <name>")
-        print("  |cffffff88/qf|r party debug | party broadcast on|off")
+        print("|cffffcc00QuestFocus|r " .. L.CHAT_COMMANDS)
+        print(L.CHAT_HELP_BASIC)
+        print(L.CHAT_HELP_MODES)
+        print(L.CHAT_HELP_SETTINGS)
+        print(L.CHAT_HELP_MODULES)
+        print(L.CHAT_HELP_PARTY)
     end
 end

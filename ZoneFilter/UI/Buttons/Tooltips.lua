@@ -4,6 +4,7 @@
 -- as the OnEnter callbacks on the respective buttons.
 
 local addonName, ns = ...
+local L = ns.L
 ns.ZoneFilter    = ns.ZoneFilter    or {}
 ns.ZoneFilter.UI = ns.ZoneFilter.UI or {}
 
@@ -42,21 +43,21 @@ function Tooltips.Filter()
     -- Colour matches the lens dot state for visual consistency.
     local titleText, tr, tg, tb
     if not active then
-        titleText  = "No filter"
+        titleText  = L.TIP_NO_FILTER
         tr, tg, tb = 1, 0.82, 0       -- default tooltip gold
     elseif dirty then
-        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or "active"
+        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or L.MODE_ACTIVE
         local addN      = State.GetDriftAddCount()
         local rmN       = State.GetDriftRemoveCount and State.GetDriftRemoveCount() or 0
         local driftStr
-        if addN > 0 and rmN > 0 then driftStr = string.format("%d added, %d removed", addN, rmN)
-        elseif addN > 0           then driftStr = string.format("%d added",            addN)
-        else                            driftStr = string.format("%d removed",          rmN) end
-        titleText  = string.format("Filter: %s (%s)", modeLabel, driftStr)
+        if addN > 0 and rmN > 0 then driftStr = string.format(L.TIP_DRIFT_BOTH, addN, rmN)
+        elseif addN > 0           then driftStr = string.format(L.TIP_DRIFT_ADDED,  addN)
+        else                            driftStr = string.format(L.TIP_DRIFT_REMOVED, rmN) end
+        titleText  = string.format(L.TIP_FILTER_DRIFT, modeLabel, driftStr)
         tr, tg, tb = 1.0, 0.55, 0.15  -- orange (drift)
     else
-        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or "active"
-        titleText  = string.format("Filter: %s", modeLabel)
+        local modeLabel = (UI.MODE_DISPLAY[lastMode] or lastMode) or L.MODE_ACTIVE
+        titleText  = string.format(L.TIP_FILTER_CLEAN, modeLabel)
         tr, tg, tb = 0.40, 1.0, 0.40  -- green (clean)
     end
     GameTooltip:SetText(titleText, tr, tg, tb)
@@ -67,7 +68,7 @@ function Tooltips.Filter()
     -- new users orientation. Once a filter is active, this would be
     -- redundant with the click-prediction lines below.
     if not active then
-        GameTooltip:AddLine("Narrow your watch list to quests with objectives in this zone.",
+        GameTooltip:AddLine(L.TIP_NARROW_DESC,
             0.75, 0.75, 0.75, true)
     end
 
@@ -88,7 +89,7 @@ function Tooltips.Filter()
 
     local function FormatDelta(untrackN, promoteN)
         if untrackN == 0 and promoteN == 0 then
-            return "|cffaaaaaa(no changes)|r"
+            return "|cffaaaaaa" .. L.TIP_NO_CHANGES .. "|r"
         end
         local parts = {}
         if untrackN > 0 then parts[#parts+1] = string.format("|cffff7777-%d|r", untrackN) end
@@ -97,7 +98,7 @@ function Tooltips.Filter()
     end
 
     if not mapKnown then
-        GameTooltip:AddLine("|cffaaaaaaCurrent zone unknown — open the world map once.|r",
+        GameTooltip:AddLine("|cffaaaaaa" .. L.TIP_MAP_UNKNOWN .. "|r",
             1, 1, 1, true)
     else
         local clickCount = Apply.CountForFilter and Apply.CountForFilter(false) or 0
@@ -107,15 +108,15 @@ function Tooltips.Filter()
         if clickCount == 0 or shiftCount == 0 then anyZeroResult = true end
 
         -- Plain left-click: narrow only (no promote).
-        GameTooltip:AddLine(string.format("%s: Focus current zone %s |cffaaaaaa(%d tracked)|r%s",
-            string.format(KEY_BINDING, "Left-Click"),
+        GameTooltip:AddLine(string.format(L.TIP_FOCUS_LINE,
+            string.format(KEY_BINDING, L.TIP_KEY_LEFT_CLICK),
             FormatDelta(untrack, 0),
             clickCount,
             clickWarn), 1, 1, 1, false)
 
         -- Shift-left-click: narrow + add zone quests from the log.
-        GameTooltip:AddLine(string.format("%s: Focus current zone + add from log %s |cffaaaaaa(%d tracked)|r%s",
-            string.format(KEY_BINDING, "Shift-Left-Click"),
+        GameTooltip:AddLine(string.format(L.TIP_FOCUS_ADD_LINE,
+            string.format(KEY_BINDING, L.TIP_KEY_SHIFT_LEFT_CLICK),
             FormatDelta(untrack, promote),
             shiftCount,
             shiftWarn), 1, 1, 1, false)
@@ -124,39 +125,37 @@ function Tooltips.Filter()
     -- 4. Re-apply hint.
     if nonZone and dirty then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("|cffaaaaaaThe |cff44ff44green button|r|cffaaaaaa re-applies the current mode.|r",
+        GameTooltip:AddLine("|cffaaaaaa" .. L.TIP_REAPPLY_HINT,
             1, 1, 1, false)
     end
 
     -- 5. Warning legend.
     if anyZeroResult then
-        GameTooltip:AddLine(UI.WARN_ICON .. " |cffaaaaaa= tracker would hide|r", 1, 1, 1, false)
+        GameTooltip:AddLine(UI.WARN_ICON .. " |cffaaaaaa" .. L.TIP_WARN_LEGEND .. "|r", 1, 1, 1, false)
     end
 
     -- 6. Hotkeys.
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("|cffaaaaaaRight-click: mode menu  |  Shift-Right: settings|r", 1, 1, 1, false)
+    GameTooltip:AddLine("|cffaaaaaa" .. L.TIP_HOTKEYS .. "|r", 1, 1, 1, false)
 end
 
 function Tooltips.Revert()
     local State = ns.ZoneFilter.State
-    GameTooltip:SetText("Restore tracking", 1, 0.82, 0)
+    GameTooltip:SetText(L.TIP_RESTORE_TITLE, 1, 0.82, 0)
     if not State.GetFilterActive() then
-        GameTooltip:AddLine("Nothing to restore.", 1, 1, 1, true)
+        GameTooltip:AddLine(L.TIP_NOTHING_TO_RESTORE, 1, 1, 1, true)
         return
     end
     local restoreCount = State.GetRevertAddCount()
     local keepCount    = State.GetDriftAddCount()
     if restoreCount > 0 then
-        GameTooltip:AddLine(string.format("Restores %d quest%s from before the filter.",
-            restoreCount, restoreCount == 1 and "" or "s"), 1, 1, 1, true)
+        GameTooltip:AddLine(string.format(L.TIP_RESTORES_N, restoreCount), 1, 1, 1, true)
     end
     if keepCount > 0 then
-        GameTooltip:AddLine(string.format("Keeps %d quest%s you've added since.",
-            keepCount, keepCount == 1 and "" or "s"), 1, 1, 1, true)
+        GameTooltip:AddLine(string.format(L.TIP_KEEPS_N, keepCount), 1, 1, 1, true)
     end
     if restoreCount == 0 and keepCount == 0 then
-        GameTooltip:AddLine("Clears filter state — no changes to tracking.", 1, 1, 1, true)
+        GameTooltip:AddLine(L.TIP_CLEARS_FILTER, 1, 1, 1, true)
     end
 end
 
@@ -164,12 +163,12 @@ function Tooltips.Reapply()
     local State = ns.ZoneFilter.State
     local UI    = ns.ZoneFilter.UI
     local lastMode = State.GetLastMode and State.GetLastMode()
-    GameTooltip:SetText("Re-apply tracker mode", 1, 0.82, 0)
+    GameTooltip:SetText(L.TIP_REAPPLY_TITLE, 1, 0.82, 0)
     if lastMode then
-        GameTooltip:AddLine(string.format("|cffaaaaaaCurrent mode: %s|r",
+        GameTooltip:AddLine(string.format("|cffaaaaaa" .. L.TIP_CURRENT_MODE .. "|r",
             UI.MODE_DISPLAY[lastMode] or lastMode), 1, 1, 1, true)
-        GameTooltip:AddLine("Clears drift and re-applies the selected mode.", 1, 1, 1, true)
+        GameTooltip:AddLine(L.TIP_REAPPLY_DESC, 1, 1, 1, true)
     else
-        GameTooltip:AddLine("|cffaaaaaaNo mode active.|r", 1, 1, 1, true)
+        GameTooltip:AddLine("|cffaaaaaa" .. L.TIP_NO_MODE_ACTIVE .. "|r", 1, 1, 1, true)
     end
 end
